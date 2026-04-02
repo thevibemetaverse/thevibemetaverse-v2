@@ -10,9 +10,8 @@ A web-based game entry for The Vibe Metaverse v2 competition. This is a browser 
 - **Started on or after**: 2026-04-02 — do not submit old/pre-existing games
 - **Free & accessible**: The game must be playable on the web with no login, no signup, and free-to-play (preferably on its own domain or subdomain)
 - **Multiplayer preferred**: Multiplayer games are preferred but not required
-- **Recommended engine**: Three.js is recommended, but any engine is allowed
+- **3D engine**: Three.js
 - **No loading screens or heavy downloads**: The game must load almost instantly — no splash screens, no large asset downloads. The only acceptable gate is an optional username prompt
-- **One entry per person**: Focus on making one really good game
 
 ## Development Guidelines
 
