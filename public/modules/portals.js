@@ -1,8 +1,7 @@
 import * as THREE from 'three';
 import { createPortalMesh } from '/vendor/portals/portal-mesh.js';
 
-// In production, point to the portals server domain.
-// For local dev, the metaverse server proxies /portals.json to the portals server.
+// Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
 /** World Z in front of spawn (0,0,0); negative Z is toward the camera look direction at load. */
 const ROW_Z = -10;
@@ -22,6 +21,10 @@ export async function initPortals(scene, player) {
   let data;
   try {
     const res = await fetch(PORTALS_URL);
+    if (!res.ok) {
+      console.warn('[Portals] portals.json unavailable:', res.status);
+      return;
+    }
     data = await res.json();
   } catch (err) {
     console.warn('[Portals] Could not load portals.json:', err);
