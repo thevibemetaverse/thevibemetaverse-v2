@@ -186,12 +186,17 @@
           body: JSON.stringify({ prompt: text }),
         });
 
-        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        if (!res.ok) {
+          // #region agent log
+          fetch('http://127.0.0.1:7772/ingest/6305c9be-d297-4877-b67b-49e5d9973c7d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'be2a27'},body:JSON.stringify({sessionId:'be2a27',location:'index.html:submitPrompt:httpNotOk',message:'generate HTTP error',data:{status:res.status},timestamp:Date.now(),hypothesisId:'H2',runId:'dragon-debug'})}).catch(()=>{});
+          // #endregion
+          throw new Error(`Server error: ${res.status}`);
+        }
         const raw = await res.json();
         const data = normalizeVoxelData(raw);
 
         // #region agent log
-        fetch('http://127.0.0.1:7772/ingest/6305c9be-d297-4877-b67b-49e5d9973c7d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'be2a27'},body:JSON.stringify({sessionId:'be2a27',location:'index.html:submitPrompt:afterNormalize',message:'normalized voxel payload',data:{rawBlockCount:Array.isArray(raw?.blocks)?raw.blocks.length:null,outBlockCount:data?.blocks?.length??null,valid:!!data&&validateVoxelData(data)},timestamp:Date.now(),hypothesisId:'H3',runId:'post-fix'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7772/ingest/6305c9be-d297-4877-b67b-49e5d9973c7d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'be2a27'},body:JSON.stringify({sessionId:'be2a27',location:'index.html:submitPrompt:afterNormalize',message:'normalized voxel payload',data:{rawBlockCount:Array.isArray(raw?.blocks)?raw.blocks.length:null,outBlockCount:data?.blocks?.length??null,valid:!!data&&validateVoxelData(data),hasRawBlocks:Array.isArray(raw?.blocks)},timestamp:Date.now(),hypothesisId:'H3',runId:'dragon-debug'})}).catch(()=>{});
         // #endregion
 
         if (!data || !validateVoxelData(data)) {
@@ -202,6 +207,9 @@
         promptsRemaining--;
         updateHUD();
       } catch (err) {
+        // #region agent log
+        fetch('http://127.0.0.1:7772/ingest/6305c9be-d297-4877-b67b-49e5d9973c7d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'be2a27'},body:JSON.stringify({sessionId:'be2a27',location:'index.html:submitPrompt:catch',message:'submitPrompt failed',data:{msg:String(err?.message)},timestamp:Date.now(),hypothesisId:'H4',runId:'dragon-debug'})}).catch(()=>{});
+        // #endregion
         console.error('Generation failed:', err);
         showError('Something went wrong — prompt not consumed');
       }

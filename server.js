@@ -33,6 +33,51 @@ Rules:
 - Be creative but recognizable. A "tree" should look like a tree in block form.
 - Return ONLY the JSON.`;
 
+/** First balanced `{ ... }` in text, respecting strings (handles preamble / trailing junk). */
+function extractFirstJsonObject(text) {
+  const start = text.indexOf('{');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === '\\') {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function parseVoxelPayloadFromModelText(text) {
+  const clean = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  try {
+    return JSON.parse(clean);
+  } catch {
+    const extracted = extractFirstJsonObject(clean);
+    if (extracted) {
+      return JSON.parse(extracted);
+    }
+    throw new Error('JSON parse failed after extraction');
+  }
+}
+
 app.post('/api/generate', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string') {
@@ -54,7 +99,7 @@ app.post('/api/generate', async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        max_tokens: 4096,
         system: VOXEL_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: `Create: ${prompt}` }],
       }),
@@ -68,12 +113,14 @@ app.post('/api/generate', async (req, res) => {
 
     const data = await response.json();
     const text = data.content.map(c => c.text || '').join('');
-    const clean = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    const voxelData = JSON.parse(clean);
+    const voxelData = parseVoxelPayloadFromModelText(text);
 
     res.json(voxelData);
   } catch (err) {
     console.error('Generate error:', err);
+    // #region agent log
+    fetch('http://127.0.0.1:7772/ingest/6305c9be-d297-4877-b67b-49e5d9973c7d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'be2a27'},body:JSON.stringify({sessionId:'be2a27',location:'server.js:generate:catch',message:'generate handler error',data:{msg:String(err?.message)},timestamp:Date.now(),hypothesisId:'H1',runId:'dragon-debug'})}).catch(()=>{});
+    // #endregion
     res.status(500).json({ error: 'Generation failed' });
   }
 });
