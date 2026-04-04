@@ -11,6 +11,25 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
+
+// Before express.static so this is never shadowed by public/portals.json
+app.get('/portals.json', async (req, res) => {
+  const base = (process.env.PORTALS_SERVER || 'http://localhost:3001').replace(/\/$/, '');
+  const upstream = `${base}/portals.json`;
+  try {
+    const r = await fetch(upstream);
+    if (!r.ok) {
+      console.warn('Portals upstream returned', r.status, upstream);
+      return res.json([]);
+    }
+    const data = await r.json();
+    res.json(Array.isArray(data) ? data : []);
+  } catch (err) {
+    console.warn('Could not reach portals server:', err.message, upstream);
+    res.json([]);
+  }
+});
+
 app.use(express.static(join(__dirname, 'public')));
 app.use('/assets', express.static(join(__dirname, 'assets')));
 // Shared portal visuals (portal-mesh.js) — single source with ../portals package
@@ -27,19 +46,6 @@ function extractCode(text) {
   if (fnMatch) code = fnMatch[1].trim();
   return code;
 }
-
-// Proxy portals.json from the portals server
-const PORTALS_SERVER = process.env.PORTALS_SERVER || 'http://localhost:3001';
-app.get('/portals.json', async (req, res) => {
-  try {
-    const r = await fetch(PORTALS_SERVER + '/portals.json');
-    const data = await r.json();
-    res.json(data);
-  } catch (err) {
-    console.warn('Could not reach portals server:', err.message);
-    res.json([]);
-  }
-});
 
 app.post('/api/generate', async (req, res) => {
   const { prompt } = req.body;
