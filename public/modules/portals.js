@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createPortalMesh } from '/vendor/portals/portal-mesh.js';
+import { fetchPortalsRegistry, spawnPortalRow, buildPortalUrl } from '@vibe/portals';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
@@ -13,19 +13,13 @@ const portalClock = new THREE.Clock();
 let portals = [];
 let promptEl = null;
 let navigating = false;
-let currentNearestPortal = null;
 let _player = null;
 
 export async function initPortals(scene, player) {
   _player = player;
   let data;
   try {
-    const res = await fetch(PORTALS_URL);
-    if (!res.ok) {
-      console.warn('[Portals] portals.json unavailable:', res.status);
-      return;
-    }
-    data = await res.json();
+    data = await fetchPortalsRegistry(PORTALS_URL);
   } catch (err) {
     console.warn('[Portals] Could not load portals.json:', err);
     return;
@@ -33,24 +27,7 @@ export async function initPortals(scene, player) {
 
   if (!data || data.length === 0) return;
 
-  const count = data.length;
-  const rowWidth = (count - 1) * ROW_SPACING;
-
-  for (let i = 0; i < count; i++) {
-    const portalData = data[i];
-    const x = -rowWidth / 2 + i * ROW_SPACING;
-
-    const group = createPortalMesh({
-      label: portalData.title || portalData.slug,
-      name: 'portal-' + portalData.slug,
-    });
-    group.position.set(x, 0, ROW_Z);
-    group.lookAt(0, 0, 0);
-
-    scene.add(group);
-    portals.push({ data: portalData, group });
-  }
-
+  portals = spawnPortalRow(scene, data, { rowZ: ROW_Z, spacing: ROW_SPACING });
 }
 
 export function updatePortals() {
@@ -73,8 +50,6 @@ export function updatePortals() {
       }
     }
   }
-
-  currentNearestPortal = nearest;
 
   if (nearest && !navigating) {
     ensurePrompt();
@@ -108,15 +83,12 @@ function ensurePrompt() {
 }
 
 function navigateToPortal(portal) {
-  const url = new URL(portal.data.url);
-  url.searchParams.set('portal', 'true');
-  url.searchParams.set('ref', window.location.href);
-
   const params = new URLSearchParams(window.location.search);
   const username = params.get('username');
   const avatar = params.get('avatar_url');
-  if (username) url.searchParams.set('username', username);
-  if (avatar) url.searchParams.set('avatar_url', avatar);
 
-  window.location.href = url.toString();
+  window.location.href = buildPortalUrl(portal.data, {
+    username: username || undefined,
+    avatarUrl: avatar || undefined,
+  });
 }

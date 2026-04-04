@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -32,8 +32,13 @@ app.get('/portals.json', async (req, res) => {
 
 app.use(express.static(join(__dirname, 'public')));
 app.use('/assets', express.static(join(__dirname, 'assets')));
-// Shared portal visuals (portal-mesh.js) — single source with ../portals package
-app.use('/vendor/portals', express.static(join(__dirname, '..', 'portals')));
+// Portal mesh: always served from vendor/ (separate portals repo is not bundled on deploy).
+// If you clone the portals repo beside this app (../portals), that copy wins locally for iteration.
+const siblingPortals = join(__dirname, '..', 'portals');
+if (existsSync(siblingPortals)) {
+  app.use('/vendor/portals', express.static(siblingPortals));
+}
+app.use('/vendor/portals', express.static(join(__dirname, 'vendor', 'portals')));
 
 const CODEGEN_SYSTEM_PROMPT = readFileSync(
   join(__dirname, 'prompts', 'codegen-system.txt'), 'utf-8'
