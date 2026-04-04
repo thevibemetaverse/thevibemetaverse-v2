@@ -8,6 +8,7 @@ import { createPlayer, updatePlayer } from './player.js';
 import { loadPlayerModel } from './character.js';
 import { setupPlayerControls } from './controls.js';
 import { initHUD, updateHUD } from './hud.js';
+import { initPortals, updatePortals } from './portals.js';
 
 export function init() {
   // Populate DOM refs
@@ -33,6 +34,7 @@ export function init() {
   loadPlayerModel();
   initHUD();
   updateHUD();
+  initPortals(state.scene, state.player);
 
   window.addEventListener('resize', onResize);
   animate();
@@ -42,6 +44,7 @@ function animate() {
   requestAnimationFrame(animate);
   const delta = Math.min(state.clock.getDelta(), 0.1);
   updatePlayer(delta);
+  updatePortals();
   updateCamera();
   if (state.animationMixer) state.animationMixer.update(delta);
   state.renderer.render(state.scene, state.camera);
