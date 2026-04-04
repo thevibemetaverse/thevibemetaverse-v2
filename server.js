@@ -13,6 +13,8 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(join(__dirname, 'public')));
 app.use('/assets', express.static(join(__dirname, 'assets')));
+// Shared portal visuals (portal-mesh.js) — single source with ../portals package
+app.use('/vendor/portals', express.static(join(__dirname, '..', 'portals')));
 
 const CODEGEN_SYSTEM_PROMPT = readFileSync(
   join(__dirname, 'prompts', 'codegen-system.txt'), 'utf-8'

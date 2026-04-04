@@ -1,9 +1,12 @@
 import * as THREE from 'three';
+import { createPortalMesh } from '/vendor/portals/portal-mesh.js';
 
 // In production, point to the portals server domain.
 // For local dev, the metaverse server proxies /portals.json to the portals server.
 const PORTALS_URL = '/portals.json';
-const PORTAL_RADIUS = 20;
+/** World Z in front of spawn (0,0,0); negative Z is toward the camera look direction at load. */
+const ROW_Z = -10;
+const ROW_SPACING = 6;
 const PROXIMITY_DIST = 3;
 
 const portalClock = new THREE.Clock();
@@ -27,20 +30,17 @@ export async function initPortals(scene, player) {
   if (!data || data.length === 0) return;
 
   const count = data.length;
-  const arcSpan = Math.min(Math.PI * 0.6, count * 0.4);
-  const startAngle = Math.PI / 2 - arcSpan / 2;
+  const rowWidth = (count - 1) * ROW_SPACING;
 
   for (let i = 0; i < count; i++) {
     const portalData = data[i];
-    const angle = count === 1
-      ? Math.PI / 2
-      : startAngle + (i / (count - 1)) * arcSpan;
+    const x = -rowWidth / 2 + i * ROW_SPACING;
 
-    const x = Math.cos(angle) * PORTAL_RADIUS;
-    const z = Math.sin(angle) * PORTAL_RADIUS;
-
-    const group = createPortalMesh(portalData);
-    group.position.set(x, 0, z);
+    const group = createPortalMesh({
+      label: portalData.title || portalData.slug,
+      name: 'portal-' + portalData.slug,
+    });
+    group.position.set(x, 0, ROW_Z);
     group.lookAt(0, 0, 0);
 
     scene.add(group);
@@ -48,114 +48,6 @@ export async function initPortals(scene, player) {
   }
 
   window.addEventListener('keydown', onKeyDown);
-}
-
-function createPortalMesh(data) {
-  const group = new THREE.Group();
-  group.name = 'portal-' + data.slug;
-
-  const frameMat = new THREE.MeshStandardMaterial({
-    color: 0x333355,
-    roughness: 0.4,
-    metalness: 0.8,
-  });
-
-  const pillarGeo = new THREE.BoxGeometry(0.25, 3.2, 0.25);
-  const leftPillar = new THREE.Mesh(pillarGeo, frameMat);
-  leftPillar.position.set(-1.3, 1.6, 0);
-  leftPillar.castShadow = true;
-  group.add(leftPillar);
-
-  const rightPillar = new THREE.Mesh(pillarGeo, frameMat);
-  rightPillar.position.set(1.3, 1.6, 0);
-  rightPillar.castShadow = true;
-  group.add(rightPillar);
-
-  const archGeo = new THREE.TorusGeometry(1.3, 0.13, 8, 32, Math.PI);
-  const arch = new THREE.Mesh(archGeo, frameMat);
-  arch.position.set(0, 3.2, 0);
-  arch.rotation.z = Math.PI;
-  arch.castShadow = true;
-  group.add(arch);
-
-  const neonMat = new THREE.MeshBasicMaterial({ color: 0x7fdbff });
-  const stripGeo = new THREE.BoxGeometry(0.04, 3.2, 0.04);
-  const ls = new THREE.Mesh(stripGeo, neonMat);
-  ls.position.set(-1.12, 1.6, 0.12);
-  group.add(ls);
-  const rs = new THREE.Mesh(stripGeo, neonMat);
-  rs.position.set(1.12, 1.6, 0.12);
-  group.add(rs);
-
-  const portalMat = new THREE.ShaderMaterial({
-    uniforms: {
-      time: { value: 0 },
-      color1: { value: new THREE.Color(0x7fdbff) },
-      color2: { value: new THREE.Color(0xc792ea) },
-    },
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float time;
-      uniform vec3 color1;
-      uniform vec3 color2;
-      varying vec2 vUv;
-
-      void main() {
-        vec2 center = vUv - 0.5;
-        float dist = length(center);
-        float angle = atan(center.y, center.x);
-
-        float swirl = sin(angle * 3.0 + dist * 8.0 - time * 2.0) * 0.5 + 0.5;
-        float pulse = sin(time * 1.5) * 0.15 + 0.85;
-        float ring = sin(dist * 12.0 - time * 3.0) * 0.5 + 0.5;
-
-        vec3 col = mix(color1, color2, swirl * ring);
-        float alpha = smoothstep(0.55, 0.3, dist) * pulse;
-
-        gl_FragColor = vec4(col * 1.5, alpha);
-      }
-    `,
-    transparent: true,
-    side: THREE.DoubleSide,
-    depthWrite: false,
-  });
-  const surface = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 3.0), portalMat);
-  surface.position.set(0, 1.65, 0.05);
-  group.add(surface);
-
-  const light1 = new THREE.PointLight(0x7fdbff, 2, 8);
-  light1.position.set(0, 2, 1);
-  group.add(light1);
-  const light2 = new THREE.PointLight(0xc792ea, 1, 6);
-  light2.position.set(0, 1, 1.5);
-  group.add(light2);
-
-  // Title label
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  ctx.font = 'bold 28px monospace';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#7fdbff';
-  ctx.shadowColor = '#7fdbff';
-  ctx.shadowBlur = 12;
-  ctx.fillText(data.title || data.slug, 256, 40);
-  const tex = new THREE.CanvasTexture(canvas);
-  const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
-  const sprite = new THREE.Sprite(spriteMat);
-  sprite.position.set(0, 4.0, 0);
-  sprite.scale.set(4, 0.5, 1);
-  group.add(sprite);
-
-  group.userData.portalMat = portalMat;
-  return group;
 }
 
 export function updatePortals() {
