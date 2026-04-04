@@ -91,13 +91,16 @@
   {
     "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.172.0/examples/jsm/"
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.172.0/examples/jsm/",
+      "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js",
+      "three-bvh-csg": "https://cdn.jsdelivr.net/npm/three-bvh-csg@0.0.16/build/index.module.js"
     }
   }
   </script>
   <script type="module">
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { Brush, Evaluator, SUBTRACTION, ADDITION, INTERSECTION } from 'three-bvh-csg';
 
     // ── Core state ──
     let scene, camera, renderer;
@@ -206,11 +209,14 @@
       if (promptsRemaining > 0) tabHint.style.display = 'block';
     }
 
-    // ── Code execution (sandboxed — only THREE is accessible) ──
+    // ── CSG helper shared with generated code ──
+    const CSG = { Brush, Evaluator, SUBTRACTION, ADDITION, INTERSECTION };
+
+    // ── Code execution (sandboxed — THREE and CSG are accessible) ──
     function executeGeneratedCode(code) {
       try {
-        const fn = new Function('THREE', code);
-        const result = fn(THREE);
+        const fn = new Function('THREE', 'CSG', code);
+        const result = fn(THREE, CSG);
         if (result && result.isGroup) return result;
         // If they returned a mesh directly, wrap it
         if (result && result.isMesh) {
