@@ -27,6 +27,9 @@
     let player;
     let playerModel;
     let animationMixer;
+    let idleAnimAction;
+    let runAnimAction;
+    let lastMovingState = null;
     const clock = new THREE.Clock();
 
     const keys = {};
@@ -115,16 +118,99 @@
 
           player.add(playerModel);
 
-          if (gltf.animations && gltf.animations.length > 0) {
-            animationMixer = new THREE.AnimationMixer(playerModel);
-            animationMixer.clipAction(gltf.animations[0]).play();
-          }
+          setupCharacterAnimations(gltf);
         },
         undefined,
         (err) => {
           console.error('Failed to load character model:', err);
         }
       );
+    }
+
+    function resetSkinnedMeshesToBindPose(root) {
+      if (!root) return;
+      root.traverse((child) => {
+        if (child.isSkinnedMesh && child.skeleton) {
+          child.skeleton.pose();
+        }
+      });
+    }
+
+    function pickIdleAndRunClips(animations) {
+      if (!animations.length) return { idle: null, run: null };
+      const run =
+        animations.find((c) => /run|sprint|jog/i.test(c.name)) ||
+        animations.find((c) => /walk/i.test(c.name));
+      const idle = animations.find((c) =>
+        /idle|stand|breath|t-?pose/i.test(c.name)
+      );
+      if (idle && run) return { idle, run };
+      if (animations.length >= 2) {
+        return { idle: animations[0], run: animations[1] };
+      }
+      const only = animations[0];
+      if (/idle|stand|breath/i.test(only.name)) {
+        return { idle: only, run: null };
+      }
+      return { idle: null, run: only };
+    }
+
+    function setupCharacterAnimations(gltf) {
+      const clips = gltf.animations;
+      if (!clips.length) return;
+
+      animationMixer = new THREE.AnimationMixer(playerModel);
+      const { idle: idleClip, run: runClip } = pickIdleAndRunClips(clips);
+
+      if (idleClip) idleAnimAction = animationMixer.clipAction(idleClip);
+      if (runClip) runAnimAction = animationMixer.clipAction(runClip);
+
+      if (idleAnimAction && runAnimAction) {
+        idleAnimAction.play();
+        runAnimAction.play();
+        runAnimAction.setEffectiveWeight(0);
+        lastMovingState = false;
+      } else if (runAnimAction && !idleAnimAction) {
+        runAnimAction.stop();
+        resetSkinnedBindPose(playerModel);
+        lastMovingState = false;
+      } else if (idleAnimAction) {
+        idleAnimAction.play();
+        lastMovingState = false;
+      }
+    }
+
+    function setMovingAnimation(isMoving) {
+      if (!animationMixer) return;
+
+      if (idleAnimAction && runAnimAction) {
+        if (lastMovingState === isMoving) return;
+        const fade = 0.25;
+        if (isMoving) {
+          idleAnimAction.crossFadeTo(runAnimAction, fade, false);
+        } else {
+          runAnimAction.crossFadeTo(idleAnimAction, fade, false);
+        }
+        lastMovingState = isMoving;
+        return;
+      }
+
+      if (runAnimAction && !idleAnimAction) {
+        if (lastMovingState === isMoving) return;
+        lastMovingState = isMoving;
+        if (isMoving) {
+          runAnimAction.reset();
+          runAnimAction.play();
+        } else {
+          runAnimAction.stop();
+          resetSkinnedMeshesToBindPose(playerModel);
+        }
+        return;
+      }
+
+      if (idleAnimAction && !runAnimAction) {
+        lastMovingState = false;
+      }
     }
 
     function updateCamera() {
@@ -158,7 +244,10 @@
       if (keys['KeyA'] || keys['ArrowLeft']) move.sub(right);
       if (keys['KeyD'] || keys['ArrowRight']) move.add(right);
 
-      if (move.lengthSq() > 0) {
+      const isMoving = move.lengthSq() > 0;
+      setMovingAnimation(isMoving);
+
+      if (isMoving) {
         move.normalize().multiplyScalar(speed);
         player.position.add(move);
         const face = Math.atan2(move.x, move.z);
