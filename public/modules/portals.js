@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 
-const PORTALS_URL = 'https://portals.thevibemetaverse.com/portals.json';
+// In production, point to the portals server domain.
+// For local dev, the metaverse server proxies /portals.json to the portals server.
+const PORTALS_URL = '/portals.json';
 const PORTAL_RADIUS = 20;
 const PROXIMITY_DIST = 3;
 

@@ -26,6 +26,19 @@ function extractCode(text) {
   return code;
 }
 
+// Proxy portals.json from the portals server
+const PORTALS_SERVER = process.env.PORTALS_SERVER || 'http://localhost:3001';
+app.get('/portals.json', async (req, res) => {
+  try {
+    const r = await fetch(PORTALS_SERVER + '/portals.json');
+    const data = await r.json();
+    res.json(data);
+  } catch (err) {
+    console.warn('Could not reach portals server:', err.message);
+    res.json([]);
+  }
+});
+
 app.post('/api/generate', async (req, res) => {
   const { prompt } = req.body;
   if (!prompt || typeof prompt !== 'string') {
