@@ -7,7 +7,8 @@ const PORTALS_URL = '/portals.json';
 /** World Z in front of spawn (0,0,0); negative Z is toward the camera look direction at load. */
 const ROW_Z = -10;
 const ROW_SPACING = 6;
-const PROXIMITY_DIST = 3;
+const PROXIMITY_DIST = 6;
+const ENTER_DIST = 2;
 
 const portalClock = new THREE.Clock();
 let portals = [];
@@ -47,7 +48,6 @@ export async function initPortals(scene, player) {
     portals.push({ data: portalData, group });
   }
 
-  window.addEventListener('keydown', onKeyDown);
 }
 
 export function updatePortals() {
@@ -75,8 +75,16 @@ export function updatePortals() {
 
   if (nearest && !navigating) {
     ensurePrompt();
-    promptEl.textContent = 'Press E to enter ' + (nearest.data.title || nearest.data.slug);
+    promptEl.textContent = 'Entering ' + (nearest.data.title || nearest.data.slug) + '...';
     promptEl.style.display = 'block';
+
+    // Walk-in trigger: navigate when player reaches the portal
+    if (nearestDist < ENTER_DIST) {
+      navigating = true;
+      const portal = nearest;
+      promptEl.textContent = 'Entering ' + (portal.data.title || portal.data.slug) + '...';
+      navigateToPortal(portal);
+    }
   } else if (promptEl) {
     promptEl.style.display = 'none';
   }
@@ -96,13 +104,7 @@ function ensurePrompt() {
   document.body.appendChild(promptEl);
 }
 
-function onKeyDown(e) {
-  if (e.code !== 'KeyE' || !currentNearestPortal || navigating) return;
-
-  navigating = true;
-  const portal = currentNearestPortal;
-  if (promptEl) promptEl.textContent = 'Entering ' + (portal.data.title || portal.data.slug) + '...';
-
+function navigateToPortal(portal) {
   const url = new URL(portal.data.url);
   url.searchParams.set('portal', 'true');
   url.searchParams.set('ref', window.location.href);
@@ -113,7 +115,5 @@ function onKeyDown(e) {
   if (username) url.searchParams.set('username', username);
   if (avatar) url.searchParams.set('avatar_url', avatar);
 
-  setTimeout(() => {
-    window.location.href = url.toString();
-  }, 500);
+  window.location.href = url.toString();
 }
