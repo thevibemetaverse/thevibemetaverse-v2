@@ -1,0 +1,2 @@
+{"sessionId":"be2a27","location":"server.js:generate:success","message":"parsed voxel JSON","data":{"blockLen":22,"keys":["blocks","glow"]},"timestamp":1775310398978,"hypothesisId":"H3","runId":"debug1"}
+{"sessionId":"be2a27","location":"index.html:submitPrompt:afterNormalize","message":"normalized voxel payload","data":{"rawBlockCount":22,"outBlockCount":20,"valid":true},"timestamp":1775310398982,"hypothesisId":"H3","runId":"post-fix"}

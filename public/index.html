@@ -5,12 +5,88 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Vibe Metaverse v2</title>
   <style>
-    * { margin: 0; padding: 0; }
-    body { overflow: hidden; background: #87CEEB; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #87CEEB; font-family: 'Courier New', monospace; }
     canvas { display: block; }
+
+    #hud {
+      position: fixed; top: 20px; right: 20px;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 8px;
+      z-index: 10; pointer-events: none;
+    }
+    #hud-pips {
+      display: flex; gap: 6px;
+    }
+    .pip {
+      width: 14px; height: 14px; border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.9);
+      background: rgba(255,255,255,0.9);
+      transition: background 0.3s, border-color 0.3s;
+    }
+    .pip.used {
+      background: transparent;
+      border-color: rgba(255,255,255,0.4);
+    }
+    #tab-hint {
+      color: rgba(255,255,255,0.85);
+      font-size: 13px;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+
+    #prompt-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      display: none; align-items: center;
+      padding: 12px 20px;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(8px);
+      z-index: 20;
+    }
+    #prompt-bar.visible { display: flex; }
+    #prompt-label {
+      color: rgba(255,255,255,0.6); font-size: 14px; margin-right: 12px;
+      white-space: nowrap;
+    }
+    #prompt-input {
+      flex: 1; background: transparent; border: none; outline: none;
+      color: #fff; font-size: 16px; font-family: 'Courier New', monospace;
+    }
+    #prompt-input::placeholder { color: rgba(255,255,255,0.35); }
+
+    #materializing {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      display: none;
+      color: #fff; font-size: 20px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+      z-index: 20; pointer-events: none;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    #materializing.visible { display: block; }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    #error-toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      display: none; padding: 10px 20px;
+      background: rgba(200,50,50,0.8); color: #fff; border-radius: 6px;
+      font-size: 14px; z-index: 25; pointer-events: none;
+    }
+    #error-toast.visible { display: block; }
   </style>
 </head>
 <body>
+  <div id="hud">
+    <div id="hud-pips"></div>
+    <div id="tab-hint">TAB to create</div>
+  </div>
+  <div id="prompt-bar">
+    <span id="prompt-label">create &gt;</span>
+    <input id="prompt-input" type="text" placeholder="Describe an object..." autocomplete="off" />
+  </div>
+  <div id="materializing">Materializing...</div>
+  <div id="error-toast"></div>
+
   <script type="importmap">
   {
     "imports": {
@@ -23,6 +99,7 @@
     import * as THREE from 'three';
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+    // ── Core state ──
     let scene, camera, renderer;
     let player;
     let playerModel;
@@ -38,6 +115,228 @@
     const orbitHeight = 6;
     let isPointerDown = false;
 
+    // ── Prompt World state ──
+    let gameState = 'EXPLORING'; // EXPLORING | PROMPTING | GENERATING
+    let promptsRemaining = 5;
+    const occupiedCells = new Set();
+    const placedObjects = [];
+    const voxelGeometry = new THREE.BoxGeometry(1, 1, 1);
+
+    // ── DOM refs ──
+    const hudPips = document.getElementById('hud-pips');
+    const tabHint = document.getElementById('tab-hint');
+    const promptBar = document.getElementById('prompt-bar');
+    const promptInput = document.getElementById('prompt-input');
+    const materializingEl = document.getElementById('materializing');
+    const errorToast = document.getElementById('error-toast');
+
+    // Build pip elements
+    for (let i = 0; i < 5; i++) {
+      const pip = document.createElement('div');
+      pip.className = 'pip';
+      hudPips.appendChild(pip);
+    }
+
+    function updateHUD() {
+      const pips = hudPips.querySelectorAll('.pip');
+      pips.forEach((pip, i) => {
+        pip.classList.toggle('used', i >= promptsRemaining);
+      });
+      tabHint.style.display = promptsRemaining > 0 ? 'block' : 'none';
+    }
+
+    function showError(msg) {
+      errorToast.textContent = msg;
+      errorToast.classList.add('visible');
+      setTimeout(() => errorToast.classList.remove('visible'), 3000);
+    }
+
+    // ── Prompt flow ──
+    function openPrompt() {
+      if (gameState !== 'EXPLORING' || promptsRemaining <= 0) return;
+      gameState = 'PROMPTING';
+      Object.keys(keys).forEach(k => keys[k] = false);
+      setMovingAnimation(false);
+      promptBar.classList.add('visible');
+      promptInput.value = '';
+      promptInput.focus();
+      tabHint.style.display = 'none';
+    }
+
+    function closePrompt() {
+      gameState = 'EXPLORING';
+      promptBar.classList.remove('visible');
+      promptInput.value = '';
+      promptInput.blur();
+      if (promptsRemaining > 0) tabHint.style.display = 'block';
+    }
+
+    async function submitPrompt() {
+      const text = promptInput.value.trim();
+      if (!text) return;
+
+      gameState = 'GENERATING';
+      promptBar.classList.remove('visible');
+      materializingEl.classList.add('visible');
+
+      try {
+        const res = await fetch('/api/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: text }),
+        });
+
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const raw = await res.json();
+        const data = normalizeVoxelData(raw);
+
+        // #region agent log
+        fetch('http://127.0.0.1:7772/ingest/6305c9be-d297-4877-b67b-49e5d9973c7d',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'be2a27'},body:JSON.stringify({sessionId:'be2a27',location:'index.html:submitPrompt:afterNormalize',message:'normalized voxel payload',data:{rawBlockCount:Array.isArray(raw?.blocks)?raw.blocks.length:null,outBlockCount:data?.blocks?.length??null,valid:!!data&&validateVoxelData(data)},timestamp:Date.now(),hypothesisId:'H3',runId:'post-fix'})}).catch(()=>{});
+        // #endregion
+
+        if (!data || !validateVoxelData(data)) {
+          throw new Error('Invalid voxel data');
+        }
+
+        placeVoxelObject(data);
+        promptsRemaining--;
+        updateHUD();
+      } catch (err) {
+        console.error('Generation failed:', err);
+        showError('Something went wrong — prompt not consumed');
+      }
+
+      materializingEl.classList.remove('visible');
+      gameState = 'EXPLORING';
+      if (promptsRemaining > 0) tabHint.style.display = 'block';
+    }
+
+    // ── Normalize AI output (models often emit floats or out-of-range coords; strict ints were rejecting those) ──
+    function normalizeVoxelData(raw) {
+      if (!raw || !Array.isArray(raw.blocks)) return null;
+      const tmp = [];
+      for (const b of raw.blocks) {
+        let x = Math.round(Number(b.x));
+        let y = Math.round(Number(b.y));
+        let z = Math.round(Number(b.z));
+        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) continue;
+        x = Math.max(0, Math.min(7, x));
+        y = Math.max(0, Math.min(7, y));
+        z = Math.max(0, Math.min(7, z));
+        const color = typeof b.color === 'string' && b.color.length ? b.color : '#888888';
+        tmp.push({ x, y, z, color });
+      }
+      const map = new Map();
+      for (const b of tmp) {
+        map.set(`${b.x},${b.y},${b.z}`, b);
+      }
+      const blocks = [...map.values()].slice(0, 64);
+      if (blocks.length === 0) return null;
+      return {
+        blocks,
+        glow: raw.glow && typeof raw.glow === 'object' ? raw.glow : null,
+      };
+    }
+
+    // ── Validation ──
+    function validateVoxelData(data) {
+      if (!data || !Array.isArray(data.blocks)) return false;
+      if (data.blocks.length === 0 || data.blocks.length > 64) return false;
+      for (const b of data.blocks) {
+        if (typeof b.x !== 'number' || typeof b.y !== 'number' || typeof b.z !== 'number') return false;
+        if (!Number.isInteger(b.x) || !Number.isInteger(b.y) || !Number.isInteger(b.z)) return false;
+        if (b.x < 0 || b.y < 0 || b.z < 0) return false;
+        if (b.x > 7 || b.y > 7 || b.z > 7) return false;
+        if (typeof b.color !== 'string') return false;
+      }
+      return true;
+    }
+
+    // ── Grid occupancy ──
+    function canPlaceAt(anchorX, anchorZ, blocks) {
+      for (const b of blocks) {
+        if (occupiedCells.has(`${anchorX + b.x},${b.y},${anchorZ + b.z}`)) return false;
+      }
+      return true;
+    }
+
+    function markOccupied(anchorX, anchorZ, blocks) {
+      for (const b of blocks) {
+        occupiedCells.add(`${anchorX + b.x},${b.y},${anchorZ + b.z}`);
+      }
+    }
+
+    function findClearPosition(baseX, baseZ, blocks) {
+      if (canPlaceAt(baseX, baseZ, blocks)) return { x: baseX, z: baseZ };
+      for (let r = 1; r <= 20; r++) {
+        for (let dx = -r; dx <= r; dx++) {
+          for (let dz = -r; dz <= r; dz++) {
+            if (Math.abs(dx) !== r && Math.abs(dz) !== r) continue;
+            const ax = baseX + dx;
+            const az = baseZ + dz;
+            if (canPlaceAt(ax, az, blocks)) return { x: ax, z: az };
+          }
+        }
+      }
+      return { x: baseX, z: baseZ }; // fallback
+    }
+
+    // ── Voxel rendering ──
+    function placeVoxelObject(data) {
+      // Calculate position in front of player
+      const facing = player.rotation.y;
+      const baseX = Math.round(player.position.x + Math.sin(facing) * 5);
+      const baseZ = Math.round(player.position.z + Math.cos(facing) * 5);
+
+      const anchor = findClearPosition(baseX, baseZ, data.blocks);
+      const group = new THREE.Group();
+
+      for (const block of data.blocks) {
+        let blockColor;
+        try {
+          blockColor = new THREE.Color(block.color);
+        } catch {
+          blockColor = new THREE.Color('#888888');
+        }
+        const mat = new THREE.MeshStandardMaterial({
+          color: blockColor,
+          roughness: 0.85,
+          flatShading: true,
+        });
+        const mesh = new THREE.Mesh(voxelGeometry, mat);
+        mesh.position.set(block.x + 0.5, block.y + 0.5, block.z + 0.5);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+      }
+
+      // Glow support
+      if (data.glow && typeof data.glow === 'object') {
+        const glowColorStr = data.glow.color || '#ffaa44';
+        const glowIntensity = data.glow.intensity || 1;
+        const maxY = Math.max(...data.blocks.map(b => b.y));
+        let glowCol;
+        try {
+          glowCol = new THREE.Color(glowColorStr);
+        } catch {
+          glowCol = new THREE.Color('#ffaa44');
+        }
+        const light = new THREE.PointLight(
+          glowCol,
+          glowIntensity,
+          12
+        );
+        light.position.set(0.5, maxY + 1, 0.5);
+        group.add(light);
+      }
+
+      group.position.set(anchor.x, 0, anchor.z);
+      scene.add(group);
+      placedObjects.push(group);
+      markOccupied(anchor.x, anchor.z, data.blocks);
+    }
+
+    // ── Init ──
     function init() {
       // Renderer
       renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -68,6 +367,7 @@
 
       setupPlayerControls();
       loadPlayerModel();
+      updateHUD();
 
       window.addEventListener('resize', onResize);
       animate();
@@ -75,13 +375,38 @@
 
     function setupPlayerControls() {
       window.addEventListener('keydown', (e) => {
-        keys[e.code] = true;
+        if (e.code === 'Tab') {
+          e.preventDefault();
+          if (gameState === 'EXPLORING' && promptsRemaining > 0) openPrompt();
+          return;
+        }
+        if (e.code === 'Escape') {
+          if (gameState === 'PROMPTING') closePrompt();
+          return;
+        }
+        if (gameState === 'EXPLORING') {
+          keys[e.code] = true;
+        }
       });
       window.addEventListener('keyup', (e) => {
         keys[e.code] = false;
       });
+
+      // Prompt input: Enter to submit
+      promptInput.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.code === 'Enter') {
+          e.preventDefault();
+          submitPrompt();
+        }
+        if (e.code === 'Escape') {
+          e.preventDefault();
+          closePrompt();
+        }
+      });
+
       renderer.domElement.addEventListener('pointerdown', (e) => {
-        if (e.button === 0) isPointerDown = true;
+        if (e.button === 0 && gameState === 'EXPLORING') isPointerDown = true;
       });
       window.addEventListener('pointerup', () => {
         isPointerDown = false;
@@ -172,7 +497,7 @@
         lastMovingState = false;
       } else if (runAnimAction && !idleAnimAction) {
         runAnimAction.stop();
-        resetSkinnedBindPose(playerModel);
+        resetSkinnedMeshesToBindPose(playerModel);
         lastMovingState = false;
       } else if (idleAnimAction) {
         idleAnimAction.play();
@@ -227,6 +552,8 @@
 
     function updatePlayer(delta) {
       if (!player) return;
+      if (gameState !== 'EXPLORING') return;
+
       const speed = 14 * delta;
       const forward = new THREE.Vector3(
         -Math.sin(orbitAngle),
@@ -302,7 +629,6 @@
     function createHills() {
       const hillColor = new THREE.Color(0x6BBF47);
 
-      // Define cluster centers around the scene
       const clusters = [
         { x: 0, z: -60, count: 4 },
         { x: 40, z: -50, count: 3 },
@@ -331,7 +657,6 @@
           const radius = 10 + rand() * 15;
           const geo = new THREE.SphereGeometry(radius, 24, 16);
 
-          // Slight color variation
           const color = hillColor.clone();
           color.offsetHSL(0, (rand() - 0.5) * 0.05, (rand() - 0.5) * 0.08);
           const mat = new THREE.MeshLambertMaterial({ color });
@@ -379,13 +704,10 @@
         const x = Math.cos(angle) * dist;
         const z = Math.sin(angle) * dist;
 
-        // Reject if too close to another tree
         const tooClose = treePositions.some(
           (p) => Math.hypot(p.x - x, p.z - z) < 3
         );
         if (tooClose) continue;
-
-        // Reject if too far back (behind the hills)
         if (z < -40) continue;
 
         treePositions.push({ x, z });
@@ -413,15 +735,12 @@
     }
 
     function setupLighting() {
-      // Ambient
       const ambient = new THREE.AmbientLight(0xB0E0FF, 0.7);
       scene.add(ambient);
 
-      // Hemisphere
       const hemi = new THREE.HemisphereLight(0x87CEEB, 0x7EC850, 0.4);
       scene.add(hemi);
 
-      // Sun
       const sun = new THREE.DirectionalLight(0xFFFDD0, 1.2);
       sun.position.set(30, 50, 20);
       sun.castShadow = true;
