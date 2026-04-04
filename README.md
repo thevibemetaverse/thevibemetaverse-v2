@@ -1,67 +1,62 @@
 # The Vibe Metaverse v2
 
-Browser game built with **Three.js** and an **Express** backend that proxies Claude API calls for prompt-to-voxel object generation.
+A Three.js world on the **portal network**: players walk through portals into other games and back. If you only care about wiring your own game, start below.
 
-## Setup
+---
 
-```bash
-npm install
-```
+## Copy this into your coding agent
 
-Copy `.env.example` to `.env` and set at least your Anthropic API key:
+Paste the whole block into Cursor, Claude Code, Copilot Chat, etc.:
 
-```
-CLAUDE_API_KEY=sk-ant-...
-```
+````
+Add a portal to The Vibe Metaverse portal network in my Three.js game.
 
-## Run locally
+1. Import createVibePortal from:
+   https://portals.thevibemetaverse.com/embed.js
+   That import auto-registers this page with the network (the browser document title is used as the game name everywhere).
 
-```bash
-npm start
-```
+2. After I have scene, camera, and something representing the player position (e.g. player.position), call:
+   const portal = createVibePortal({ scene, camera });
+   Position the portal mesh (it is a THREE.Group), add it to the scene.
 
-Open **http://localhost:3000** in your browser.
+3. In my animation/render loop, every frame call:
+   portal.update(player.position)
+   (or whatever Vector3 tracks the player.)
 
-## How to play
+4. Proximity: around 6 units shows the enter prompt; around 2 units it navigates. If the URL has ?ref= (player came from another game), the embed shows a Return portal — no extra code.
 
-- **WASD** — move
-- **Click + drag** — rotate camera
-- **TAB** — open the prompt bar (type a description like "a glowing lantern", press Enter)
-- **Escape** — close the prompt bar
-- You get **5 prompts per session** — shown as pips in the top-right corner
+5. Optional: set a clear <title> in HTML so other games see a good label above my portal.
 
-## Adding a Portal to Your Game
+Do not remove my existing game logic; only add the import, portal creation/placement, and portal.update in the loop.
+````
 
-Want your Three.js game to connect to the Vibe Metaverse portal network? Add the portal embed and players can walk between your game and every other game on the network.
+**Embed URL (if you edit by hand):** `https://portals.thevibemetaverse.com/embed.js`
 
-### 1. Import the embed
+---
 
-Add this import to your main JavaScript file:
+## Add a portal yourself
+
+### 1. Import
 
 ```js
-import { createVibePortal } from 'https://portals-production-ee2d.up.railway.app/embed.js';
+import { createVibePortal } from 'https://portals.thevibemetaverse.com/embed.js';
 ```
 
-This does two things automatically:
-- **Registers your game** with the portal network — your page's `<title>` tag is used as your game's name across the entire network (this is what players see above your portal in every other game)
-- **Exports `createVibePortal()`** so you can place a portal in your scene
+Loading this URL **registers** your game (`window.location.origin` + `document.title`) with the portal registry.
 
-### 2. Create a portal in your scene
+### 2. Create and place
 
 ```js
 const portal = createVibePortal({
-  scene: scene,     // your Three.js scene
-  camera: camera,   // your Three.js camera
+  scene,
+  camera,
 });
 
-// Position it wherever you want in your world
 portal.position.set(0, 0, -10);
 scene.add(portal);
 ```
 
-### 3. Update every frame
-
-In your render/animation loop, pass the player's position so the portal can detect proximity:
+### 3. Drive it every frame
 
 ```js
 function animate() {
@@ -71,64 +66,68 @@ function animate() {
 }
 ```
 
-When a player walks within **6 units**, a prompt appears. At **2 units**, they're automatically transported to the destination.
+Within **~6 units** the UI prompts; within **~2 units** navigation runs.
 
-### 4. Handle return portals
-
-If a player arrives at your game from another portal, the URL will contain a `?ref=` parameter. The embed handles this automatically — a "Return" portal appears so players can go back where they came from.
-
-### Options reference
+### Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `scene` | `THREE.Scene` | — | Your Three.js scene |
-| `camera` | `THREE.Camera` | — | Your Three.js camera |
-| `label` | `string` | `'The Vibe Metaverse'` | Text displayed above the portal |
-| `username` | `string` | `null` | Player name, passed to destination via query param |
-| `avatar` | `string` | `null` | Avatar URL, passed to destination via query param |
-| `scale` | `number` | `1` | Portal size multiplier |
-| `proximityDist` | `number` | `6` | Distance (units) to show the prompt |
-| `enterDist` | `number` | `2` | Distance (units) to auto-navigate |
-| `game` | `string` | `'the-vibe-metaverse'` | Portal slug to navigate to |
+| `scene` | `THREE.Scene` | — | Your scene |
+| `camera` | `THREE.Camera` | — | Your camera |
+| `label` | `string` | `'The Vibe Metaverse'` | Text above the portal (ignored when showing Return) |
+| `username` | `string` | `null` | Passed to the destination as a query param |
+| `avatar` | `string` | `null` | Avatar URL for the destination |
+| `scale` | `number` | `1` | Portal size; proximity distances scale with this |
+| `proximityDist` | `number` | `6` | Show prompt within this distance (world units) |
+| `enterDist` | `number` | `2` | Auto-navigate within this distance |
+| `game` | `string` | `'the-vibe-metaverse'` | Registry slug to navigate to |
 
-### How it works under the hood
+### Name on the network
 
-1. Your game loads `embed.js`, which auto-registers your game's URL and title with the portal registry
-2. The registry at `https://portals-production-ee2d.up.railway.app/portals.json` maintains the list of all connected games
-3. Each game fetches this list and renders portals to every other game (filtering out itself)
-4. Walking into a portal navigates to the destination with `?portal=true&ref=<origin>` query params
-5. The destination game sees the `ref` param and shows a return portal back
-
-### Add a portal with a coding agent
-
-If you're using a coding agent (Claude Code, Cursor, etc.), paste this prompt:
-
-> Add a portal to The Vibe Metaverse portal network in my Three.js game.
->
-> Import `createVibePortal` from `https://portals-production-ee2d.up.railway.app/embed.js`. This import auto-registers my game with the network using the page's `<title>` tag as the game name.
->
-> Call `createVibePortal({ scene, camera })` to create the portal mesh. Position it somewhere visible near the player spawn point, add it to the scene, and call `portal.update(playerPosition)` in the animation loop so it can detect when the player walks into it. The portal auto-navigates when a player gets within 2 units.
->
-> Return portals are handled automatically — if `?ref=` is in the URL, a return portal appears. No extra code needed.
-
-### Your game's name on the network
-
-Your page's `<title>` tag is automatically used as the label above your portal in every other game on the network. Just make sure your HTML has a good title:
+Other games read your label from the page title:
 
 ```html
 <title>Cool Space Game</title>
 ```
 
-### Register manually (without the embed)
+### Return trips
 
-If you just want your game listed without using the SDK portal mesh, send a POST:
+If the URL contains `?ref=...`, the embed builds a **Return** portal that sends the player back. No extra code.
+
+---
+
+## Run this repo locally
+
+Browser game (Three.js) plus an Express backend that proxies **Claude** for prompt-to-voxel generation.
+
+**Install**
 
 ```bash
-curl -X POST https://portals-production-ee2d.up.railway.app/api/register \
-  -H 'Content-Type: application/json' \
-  -d '{"url": "https://yourgame.com", "title": "Cool Space Game"}'
+npm install
 ```
 
-## Requirements
+**Config**
 
-- [Node.js](https://nodejs.org/) v18+
+Copy `.env.example` to `.env` and set at least:
+
+```
+CLAUDE_API_KEY=sk-ant-...
+```
+
+**Start**
+
+```bash
+npm start
+```
+
+Open **http://localhost:3000**.
+
+**Controls**
+
+- **WASD** — move  
+- **Click + drag** — rotate camera  
+- **TAB** — prompt bar (describe an object, Enter)  
+- **Escape** — close prompt bar  
+- **5 prompts per session** (pips in the corner)
+
+**Requirements:** [Node.js](https://nodejs.org/) v18+
