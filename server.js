@@ -3,6 +3,7 @@ import express from 'express';
 import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { PORTALS_PRODUCTION_ORIGIN } from './vendor/portals/sdk/network.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,7 +15,7 @@ app.use(express.json());
 
 // Before express.static so this is never shadowed by public/portals.json
 app.get('/portals.json', async (req, res) => {
-  const base = (process.env.PORTALS_SERVER || 'http://localhost:3001').replace(/\/$/, '');
+  const base = (process.env.PORTALS_SERVER || PORTALS_PRODUCTION_ORIGIN).replace(/\/$/, '');
   const upstream = `${base}/portals.json`;
   try {
     const r = await fetch(upstream);
