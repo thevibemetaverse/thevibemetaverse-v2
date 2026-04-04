@@ -103,21 +103,25 @@ function createTrees() {
   const rand = seededRandom(123);
 
   const treePositions = [];
-  const treeCount = 30;
+  const treeCount = 18;
+  /** Inner radius keeps spawn and the portal row (negative Z) clear of canopy. */
+  const minDist = 30;
+  const maxDist = 56;
   let attempts = 0;
 
-  while (treePositions.length < treeCount && attempts < 500) {
+  while (treePositions.length < treeCount && attempts < 800) {
     attempts++;
     const angle = rand() * Math.PI * 2;
-    const dist = 8 + rand() * 45;
+    const dist = minDist + rand() * (maxDist - minDist);
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
 
     const tooClose = treePositions.some(
-      (p) => Math.hypot(p.x - x, p.z - z) < 3
+      (p) => Math.hypot(p.x - x, p.z - z) < 4
     );
     if (tooClose) continue;
-    if (z < -40) continue;
+    // Extra guard: keep a wedge toward negative Z clear for portal sightlines
+    if (Math.abs(x) < 22 && z < 6 && z > -32) continue;
 
     treePositions.push({ x, z });
 
