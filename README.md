@@ -12,7 +12,7 @@ Paste the whole block into Cursor, Claude Code, Copilot Chat, etc.:
 Add a portal to The Vibe Metaverse portal network in my Three.js game.
 
 1. Import createVibePortal from:
-   https://portals.thevibemetaverse.com/embed.js
+   https://portals-production-ee2d.up.railway.app/embed.js
    That import auto-registers this page with the network (the browser document title is used as the game name everywhere).
 
 2. After I have scene, camera, and something representing the player position (e.g. player.position), call:
@@ -30,7 +30,7 @@ Add a portal to The Vibe Metaverse portal network in my Three.js game.
 Do not remove my existing game logic; only add the import, portal creation/placement, and portal.update in the loop.
 ````
 
-**Embed URL (if you edit by hand):** `https://portals.thevibemetaverse.com/embed.js`
+**Embed URL (if you edit by hand):** `https://portals-production-ee2d.up.railway.app/embed.js`
 
 ---
 
@@ -39,7 +39,7 @@ Do not remove my existing game logic; only add the import, portal creation/place
 ### 1. Import
 
 ```js
-import { createVibePortal } from 'https://portals.thevibemetaverse.com/embed.js';
+import { createVibePortal } from 'https://portals-production-ee2d.up.railway.app/embed.js';
 ```
 
 Loading this URL **registers** your game (`window.location.origin` + `document.title`) with the portal registry.
