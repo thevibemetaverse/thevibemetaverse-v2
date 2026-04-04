@@ -1,7 +1,17 @@
 import { state } from './state.js';
 import { openPrompt, closePrompt, submitPrompt } from './prompt.js';
 
+function clearStuckInput() {
+  state.keys = {};
+  state.isPointerDown = false;
+}
+
 export function setupPlayerControls() {
+  // BFCache restore (e.g. back from a portal): keyup never fired for held keys
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) clearStuckInput();
+  });
+
   window.addEventListener('keydown', (e) => {
     if (e.code === 'Tab') {
       e.preventDefault();

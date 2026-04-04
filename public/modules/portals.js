@@ -15,6 +15,11 @@ let promptEl = null;
 let navigating = false;
 let _player = null;
 
+// BFCache restore: navigating was left true when we navigated away
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted) navigating = false;
+});
+
 export async function initPortals(scene, player) {
   _player = player;
   let data;
