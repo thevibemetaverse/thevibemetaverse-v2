@@ -5,6 +5,33 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { PORTALS_PRODUCTION_ORIGIN } from './vendor/portals/sdk/network.js';
 
+/** Ensure the static portal hub (network index) is listed so the metaverse is not the only destination. */
+function mergePortalHub(entries, portalsOrigin) {
+  const list = Array.isArray(entries) ? [...entries] : [];
+  const origin = portalsOrigin.replace(/\/$/, '');
+  const hubUrl = `${origin}/`;
+  const hubOrigin = new URL(hubUrl).origin;
+  const hasHub = list.some((p) => {
+    if (!p?.url) return false;
+    try {
+      const u = new URL(p.url);
+      if (u.origin !== hubOrigin) return false;
+      const path = u.pathname.replace(/\/$/, '') || '/';
+      return path === '/' || path === '/index.html';
+    } catch {
+      return false;
+    }
+  });
+  if (!hasHub) {
+    list.push({
+      slug: 'portal-network',
+      title: 'Portal Network',
+      url: hubUrl,
+    });
+  }
+  return list;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -24,7 +51,14 @@ app.get('/portals.json', async (req, res) => {
       return res.json([]);
     }
     const data = await r.json();
-    res.json(Array.isArray(data) ? data : []);
+    const list = Array.isArray(data) ? data : [];
+    // Remove our own entry so we never show a portal back to ourselves
+    const selfOrigin = new URL(req.protocol + '://' + req.get('host')).origin;
+    const filtered = list.filter((p) => {
+      if (!p?.url) return false;
+      try { return new URL(p.url).origin !== selfOrigin; } catch { return true; }
+    });
+    res.json(mergePortalHub(filtered, base));
   } catch (err) {
     console.warn('Could not reach portals server:', err.message, upstream);
     res.json([]);

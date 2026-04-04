@@ -20,6 +20,20 @@ window.addEventListener('pageshow', (e) => {
   if (e.persisted) navigating = false;
 });
 
+/** Registry entries that point at this same page cause a reload loop (see buildPortalUrl). */
+function isSameDocumentDestination(portalUrl) {
+  if (!portalUrl || typeof portalUrl !== 'string') return true;
+  try {
+    const dest = new URL(portalUrl, window.location.href);
+    const here = new URL(window.location.href);
+    const dPath = dest.pathname.replace(/\/$/, '') || '/';
+    const hPath = here.pathname.replace(/\/$/, '') || '/';
+    return dest.origin === here.origin && dPath === hPath;
+  } catch {
+    return true;
+  }
+}
+
 export async function initPortals(scene, player) {
   _player = player;
   let data;
@@ -31,6 +45,9 @@ export async function initPortals(scene, player) {
   }
 
   if (!data || data.length === 0) return;
+
+  data = data.filter((p) => p.url && !isSameDocumentDestination(p.url));
+  if (data.length === 0) return;
 
   portals = spawnPortalRow(scene, data, { rowZ: ROW_Z, spacing: ROW_SPACING });
 }
