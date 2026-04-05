@@ -65,6 +65,14 @@ app.get('/portals.json', async (req, res) => {
   }
 });
 
+app.use((req, res, next) => {
+  if (req.path === '/manifest.json' || req.path.startsWith('/assets/')) {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  }
+  next();
+});
+
 app.use(express.static(join(__dirname, 'public')));
 app.use('/assets', express.static(join(__dirname, 'assets')));
 // Portal mesh: always served from vendor/ (separate portals repo is not bundled on deploy).
