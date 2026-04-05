@@ -31,11 +31,14 @@ const PIETER_PORTAL_URL = 'https://portal.pieter.com';
 const PLAYER_MOVE_SPEED = 14;
 /** Lift the Pieter mesh so the torus is not half-buried in the ground plane. */
 const PIETER_ELEVATION_Y = 1.65;
-/** Fixed world X for the Pieter (Vibeverse) torus — positive = to the right of the centered row (not in the row). */
-const PIETER_PORTAL_X = 22;
+/**
+ * Anchor X for the red return portal (right of the pair). Green Vibeverse portal sits to the left at
+ * {@link PIETER_PORTAL_X} + {@link CUSTOM_REF_PORTAL_OFFSET_X}.
+ */
+const PIETER_PORTAL_X = 18;
 /** Same depth as the dynamic portal row ({@link ROW_Z}). */
 const PIETER_PORTAL_Z = ROW_Z;
-/** When `?portal` is set: red return portal is this many units along X from the Pieter torus (same Z). */
+/** Green Vibeverse torus is this many units along X from the red return portal (same Z); negative = left. */
 const CUSTOM_REF_PORTAL_OFFSET_X = -ROW_SPACING;
 
 const portalClock = new THREE.Clock();
@@ -53,13 +56,13 @@ function hasPortalQueryParam() {
 }
 
 /**
- * Red torus + particles portal (scaled like Pieter). Fixed beside {@link PIETER_PORTAL_X} when `?portal` is present.
+ * Red torus + particles portal (scaled like Pieter). At {@link PIETER_PORTAL_X} when `?portal` is present.
  */
 function createCustomRefPortal(scene) {
   const GROUP_SCALE = 0.11;
   const startPortalGroup = new THREE.Group();
   startPortalGroup.name = 'custom-ref-portal';
-  const x = PIETER_PORTAL_X + CUSTOM_REF_PORTAL_OFFSET_X;
+  const x = PIETER_PORTAL_X;
   startPortalGroup.position.set(x, PIETER_ELEVATION_Y, PIETER_PORTAL_Z);
   startPortalGroup.scale.setScalar(GROUP_SCALE);
 
@@ -145,13 +148,14 @@ function createCustomRefPortal(scene) {
 }
 
 /**
- * Green Pieter / Vibeverse exit portal (same mesh style as custom ref). Uses {@link PIETER_PORTAL_X} / {@link PIETER_PORTAL_Z}.
+ * Green Pieter / Vibeverse exit portal (same mesh style as custom ref). Left of the return portal at
+ * {@link PIETER_PORTAL_X} + {@link CUSTOM_REF_PORTAL_OFFSET_X}.
  */
 function createPieterPortal(scene) {
   const GROUP_SCALE = 0.11;
   const g = new THREE.Group();
   g.name = 'pieter-portal';
-  g.position.set(PIETER_PORTAL_X, PIETER_ELEVATION_Y, PIETER_PORTAL_Z);
+  g.position.set(PIETER_PORTAL_X + CUSTOM_REF_PORTAL_OFFSET_X, PIETER_ELEVATION_Y, PIETER_PORTAL_Z);
   g.scale.setScalar(GROUP_SCALE);
 
   const torus = new THREE.Mesh(
@@ -305,7 +309,7 @@ export async function initPortals(scene, player) {
   const hubExitEntry = data.find((p) => p.slug === 'portal-network');
   const registryData = data.filter((p) => p.slug !== 'portal-network');
 
-  /** Layout: [sdk portals...] [hub_exit?] — Pieter + optional red ref are fixed off-row (see PIETER_PORTAL_*). */
+  /** Layout: [sdk portals...] [hub_exit?] — green Vibeverse + optional red return fixed off-row (see PIETER_PORTAL_*). */
   const leadingSlots = 0;
   const trailingSlots = hubExitEntry ? 1 : 0;
   const totalSlots = leadingSlots + registryData.length + trailingSlots;
