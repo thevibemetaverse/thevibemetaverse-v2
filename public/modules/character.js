@@ -3,9 +3,13 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { state } from './state.js';
 
 export function loadPlayerModel() {
+  const params = new URLSearchParams(window.location.search);
+  const avatarUrl = params.get('avatar_url');
+  const modelPath = avatarUrl || 'assets/3d/metaverse-explorer.glb';
+
   const loader = new GLTFLoader();
   loader.load(
-    'assets/3d/metaverse-explorer.glb',
+    modelPath,
     (gltf) => {
       state.playerModel = gltf.scene;
       state.playerModel.traverse((child) => {
