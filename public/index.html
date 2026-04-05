@@ -93,6 +93,42 @@
       font-size: 14px; z-index: 25; pointer-events: none;
     }
     #error-toast.visible { display: block; }
+
+    #avatar-picker {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 10px;
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+    }
+    #avatar-picker button {
+      font-family: inherit;
+      font-size: 22px;
+      line-height: 1;
+      padding: 6px 10px;
+      border: 2px solid transparent;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.12);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    }
+    #avatar-picker button:hover {
+      background: rgba(255,255,255,0.22);
+      transform: scale(1.06);
+    }
+    #avatar-picker button.active {
+      border-color: rgba(255,255,255,0.75);
+      background: rgba(255,255,255,0.2);
+    }
   </style>
   <script async src="https://jam.pieter.com/2026/widget.js"></script>
 </head>
@@ -114,6 +150,12 @@
   </div>
   <div id="materializing">Materializing...</div>
   <div id="error-toast"></div>
+
+  <div id="avatar-picker" role="toolbar" aria-label="Avatar">
+    <button type="button" data-avatar="fox" title="Fox" aria-label="Fox">🦊</button>
+    <button type="button" data-avatar="duck" title="Duck" aria-label="Duck">🦆</button>
+    <button type="button" data-avatar="explorer" title="Metaverse Explorer" aria-label="Metaverse Explorer">👕</button>
+  </div>
 
   <script type="importmap">
   {

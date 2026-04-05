@@ -6,6 +6,7 @@ import { createWorld } from './world.js';
 import { setupLighting } from './lighting.js';
 import { createPlayer, updatePlayer } from './player.js';
 import { loadPlayerModel } from './character.js';
+import { initAvatarPicker } from './avatar-picker.js';
 import { setupPlayerControls } from './controls.js';
 import { initHUD, updateHUD } from './hud.js';
 import { initPortals, updatePortals } from './portals.js';
@@ -32,6 +33,7 @@ export function init() {
 
   setupPlayerControls();
   loadPlayerModel();
+  initAvatarPicker();
   initHUD();
   updateHUD();
   initPortals(state.scene, state.player);
