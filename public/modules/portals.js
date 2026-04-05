@@ -8,7 +8,10 @@ import {
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
-/** World Z in front of spawn (0,0,0); negative Z is toward the camera look direction at load. */
+/**
+ * Fixed world Z for the dynamic portal row and Pieter toruses (same depth from spawn).
+ * Negative Z is toward the camera look direction at load.
+ */
 const ROW_Z = -10;
 const ROW_SPACING = 6;
 
@@ -314,12 +317,6 @@ export async function initPortals(scene, player) {
     trailingSlots,
   });
 
-  // Normalize SDK portal heights so they form a uniform row
-  for (const portal of portals) {
-    portal.group.position.y = PIETER_ELEVATION_Y;
-    portal.group.lookAt(0, PIETER_ELEVATION_Y, 0);
-  }
-
   const hubSlotIndex = leadingSlots + registryData.length;
 
   if (hubExitEntry) {
@@ -327,11 +324,16 @@ export async function initPortals(scene, player) {
       label: hubExitEntry.title || hubExitEntry.slug,
       name: 'portal-' + hubExitEntry.slug,
     });
-    const x = portalRowSlotX(hubSlotIndex, totalSlots, ROW_SPACING);
-    group.position.set(x, PIETER_ELEVATION_Y, ROW_Z);
-    group.lookAt(0, PIETER_ELEVATION_Y, 0);
     scene.add(group);
     portals.push({ data: hubExitEntry, group });
+  }
+
+  // Flat row at fixed Z (same as Pieter / {@link ROW_Z})
+  for (let i = 0; i < portals.length; i++) {
+    const slotIndex = i < registryData.length ? i : hubSlotIndex;
+    const x = portalRowSlotX(slotIndex, totalSlots, ROW_SPACING);
+    portals[i].group.position.set(x, PIETER_ELEVATION_Y, ROW_Z);
+    portals[i].group.lookAt(0, PIETER_ELEVATION_Y, 0);
   }
 
   pieterPortal = createPieterPortal(scene);
