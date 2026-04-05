@@ -11,5 +11,5 @@
 
 export { createPortalMesh, disposePortalMesh } from '../portal-mesh.js';
 export { fetchPortalsRegistry, buildPortalUrl } from './registry.js';
-export { spawnPortalRow } from './hub.js';
+export { spawnPortalRow, getPortalRowSlotX } from './hub.js';
 export { PORTALS_PRODUCTION_ORIGIN } from './network.js';
