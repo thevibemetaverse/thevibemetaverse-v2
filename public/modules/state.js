@@ -1,5 +1,6 @@
 // @ts-check
 import * as THREE from 'three';
+import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
 
 /**
  * @typedef {'EXPLORING' | 'PROMPTING'} GameState
@@ -57,8 +58,8 @@ export const state = {
   // Input
   keys: {},
   orbitAngle: 0,
-  orbitDistance: 14,
-  orbitHeight: 6,
+  orbitDistance: CAMERA_ORBIT_DISTANCE,
+  orbitHeight: CAMERA_ORBIT_HEIGHT,
   isPointerDown: false,
 
   // Game

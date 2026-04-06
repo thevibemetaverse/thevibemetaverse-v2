@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { state } from './state.js';
 import { setMovingAnimation } from './character.js';
+import { PLAYER_MOVE_SPEED, PLAYER_WORLD_LIMIT } from './constants.js';
 
 export function createPlayer() {
   state.player = new THREE.Group();
@@ -11,7 +12,7 @@ export function updatePlayer(delta) {
   if (!state.player) return;
   if (state.gameState !== 'EXPLORING') return;
 
-  const speed = 14 * delta;
+  const speed = PLAYER_MOVE_SPEED * delta;
   const forward = new THREE.Vector3(
     -Math.sin(state.orbitAngle),
     0,
@@ -38,7 +39,6 @@ export function updatePlayer(delta) {
     state.player.rotation.y = face;
   }
 
-  const limit = 120;
-  state.player.position.x = THREE.MathUtils.clamp(state.player.position.x, -limit, limit);
-  state.player.position.z = THREE.MathUtils.clamp(state.player.position.z, -limit, limit);
+  state.player.position.x = THREE.MathUtils.clamp(state.player.position.x, -PLAYER_WORLD_LIMIT, PLAYER_WORLD_LIMIT);
+  state.player.position.z = THREE.MathUtils.clamp(state.player.position.z, -PLAYER_WORLD_LIMIT, PLAYER_WORLD_LIMIT);
 }

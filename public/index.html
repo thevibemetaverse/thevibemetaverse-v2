@@ -4,75 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>The Vibe Metaverse v2</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #87CEEB; font-family: 'Courier New', monospace; }
-    canvas { display: block; }
-
-    #hud {
-      position: fixed; top: 20px; right: 20px;
-      z-index: 10; pointer-events: none;
-    }
-    #github-link {
-      display: flex; align-items: center; justify-content: center;
-      color: rgba(255,255,255,0.9);
-      opacity: 0.9;
-      transition: opacity 0.2s, color 0.2s;
-      pointer-events: auto;
-    }
-    #github-link:hover {
-      opacity: 1;
-      color: #fff;
-    }
-    #github-link svg {
-      width: 26px; height: 26px;
-      filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
-    }
-
-    #error-toast {
-      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-      display: none; padding: 10px 20px;
-      background: rgba(200,50,50,0.8); color: #fff; border-radius: 6px;
-      font-size: 14px; z-index: 25; pointer-events: none;
-    }
-    #error-toast.visible { display: block; }
-
-    #avatar-picker {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 15;
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      padding: 8px 12px;
-      background: rgba(0,0,0,0.55);
-      border: 1px solid rgba(255,255,255,0.35);
-      border-radius: 10px;
-      backdrop-filter: blur(8px);
-      pointer-events: auto;
-    }
-    #avatar-picker button {
-      font-family: inherit;
-      font-size: 22px;
-      line-height: 1;
-      padding: 6px 10px;
-      border: 2px solid transparent;
-      border-radius: 8px;
-      background: rgba(255,255,255,0.12);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s, transform 0.1s;
-    }
-    #avatar-picker button:hover {
-      background: rgba(255,255,255,0.22);
-      transform: scale(1.06);
-    }
-    #avatar-picker button.active {
-      border-color: rgba(255,255,255,0.75);
-      background: rgba(255,255,255,0.2);
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
   <script async src="https://jam.pieter.com/2026/widget.js"></script>
 </head>
 <body>

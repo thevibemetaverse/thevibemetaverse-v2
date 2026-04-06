@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { state } from './state.js';
 import { seededRandom } from './utils.js';
+import { GROUND_SIZE, SKY_RADIUS, TREE_COUNT, TREE_MIN_DIST, TREE_MAX_DIST, TREE_CLEARANCE } from './constants.js';
 
 export function createWorld() {
   createSky();
@@ -10,7 +11,7 @@ export function createWorld() {
 }
 
 function createSky() {
-  const skyGeo = new THREE.SphereGeometry(400, 32, 24);
+  const skyGeo = new THREE.SphereGeometry(SKY_RADIUS, 32, 24);
   const skyMat = new THREE.ShaderMaterial({
     uniforms: {
       topColor: { value: new THREE.Color(0x5BA3D9) },
@@ -41,7 +42,7 @@ function createSky() {
 }
 
 function createGround() {
-  const groundGeo = new THREE.PlaneGeometry(300, 300);
+  const groundGeo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE);
   const groundMat = new THREE.MeshLambertMaterial({ color: 0x7EC850 });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
@@ -103,10 +104,10 @@ function createTrees() {
   const rand = seededRandom(123);
 
   const treePositions = [];
-  const treeCount = 18;
+  const treeCount = TREE_COUNT;
   /** Inner radius keeps spawn and the portal row (negative Z) clear of canopy. */
-  const minDist = 30;
-  const maxDist = 56;
+  const minDist = TREE_MIN_DIST;
+  const maxDist = TREE_MAX_DIST;
   let attempts = 0;
 
   while (treePositions.length < treeCount && attempts < 800) {
@@ -117,7 +118,7 @@ function createTrees() {
     const z = Math.sin(angle) * dist;
 
     const tooClose = treePositions.some(
-      (p) => Math.hypot(p.x - x, p.z - z) < 4
+      (p) => Math.hypot(p.x - x, p.z - z) < TREE_CLEARANCE
     );
     if (tooClose) continue;
     // Extra guard: keep a wedge toward negative Z clear for portal sightlines

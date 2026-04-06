@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { state } from './state.js';
+import { FOG_DENSITY, MAX_DELTA } from './constants.js';
 import { createRenderer, onResize } from './renderer.js';
 import { createCamera, updateCamera } from './camera.js';
 import { createWorld } from './world.js';
@@ -18,7 +19,7 @@ export function init() {
 
   // Scene
   state.scene = new THREE.Scene();
-  state.scene.fog = new THREE.FogExp2(0xCCE8FF, 0.006);
+  state.scene.fog = new THREE.FogExp2(0xCCE8FF, FOG_DENSITY);
 
   createCamera();
   createWorld();
@@ -36,7 +37,7 @@ export function init() {
 
 function animate() {
   requestAnimationFrame(animate);
-  const delta = Math.min(state.clock.getDelta(), 0.1);
+  const delta = Math.min(state.clock.getDelta(), MAX_DELTA);
   updatePlayer(delta);
   updatePortals();
   updateCamera();
