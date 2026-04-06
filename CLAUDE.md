@@ -21,3 +21,24 @@ A web-based game entry for The Vibe Metaverse v2 competition. This is a browser 
 - Target instant load: the player should be in the game within seconds of opening the page
 - If multiplayer, use WebSockets or WebRTC for real-time communication
 - Deploy to a publicly accessible URL (own domain/subdomain preferred)
+
+## Code Patterns
+
+### Shared State with JSDoc Types
+
+All game state lives in `public/modules/state.js` as a single exported object typed with JSDoc. When adding new properties to state:
+
+1. Add the property to the `GameStateObject` typedef with its type and a brief description
+2. Add the initial value to the `state` object
+3. Keep `@ts-check` enabled — editors will catch type mismatches without a build step
+
+This project uses **no build step** (no TypeScript, no bundler). Use JSDoc typedefs for type safety instead of TypeScript.
+
+### Adding a New Module
+
+1. Create a new file in `public/modules/`
+2. Import state: `import { state } from './state.js';`
+3. Export `initX()` and/or `updateX()` functions
+4. Wire `initX()` into `game.js` `init()` — order matters, see the existing sequence
+5. Wire `updateX()` into the `animate()` loop if it needs per-frame updates
+6. Use `state` for any data that needs to be shared across modules — do not pass data between modules directly

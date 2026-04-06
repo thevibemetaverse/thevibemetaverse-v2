@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { CAMERA_ORBIT_SENSITIVITY } from './constants.js';
 
 function clearStuckInput() {
   state.keys = {};
@@ -28,6 +29,6 @@ export function setupPlayerControls() {
   });
   window.addEventListener('pointermove', (e) => {
     if (!state.isPointerDown) return;
-    state.orbitAngle -= e.movementX * 0.006;
+    state.orbitAngle -= e.movementX * CAMERA_ORBIT_SENSITIVITY;
   });
 }

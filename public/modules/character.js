@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { state } from './state.js';
+import { PLAYER_TARGET_HEIGHT, ANIMATION_CROSSFADE } from './constants.js';
 
 export const BUNDLED_METAVERSE_EXPLORER = 'assets/3d/metaverse-explorer.glb';
 export const SAMPLE_FOX_GLB =
@@ -45,7 +46,7 @@ function applyLoadedGltf(gltf) {
 
   const box = new THREE.Box3().setFromObject(state.playerModel);
   const size = box.getSize(new THREE.Vector3());
-  const targetHeight = 2.2;
+  const targetHeight = PLAYER_TARGET_HEIGHT;
   const scale = targetHeight / Math.max(size.y, 0.001);
   state.playerModel.scale.setScalar(scale);
 
@@ -150,7 +151,7 @@ export function setMovingAnimation(isMoving) {
 
   if (state.idleAnimAction && state.runAnimAction) {
     if (state.lastMovingState === isMoving) return;
-    const fade = 0.25;
+    const fade = ANIMATION_CROSSFADE;
     if (isMoving) {
       state.idleAnimAction.crossFadeTo(state.runAnimAction, fade, false);
     } else {
