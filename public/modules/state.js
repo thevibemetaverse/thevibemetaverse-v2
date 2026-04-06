@@ -23,8 +23,7 @@ export const state = {
   isPointerDown: false,
 
   // Game
-  gameState: 'EXPLORING', // EXPLORING | PROMPTING | GENERATING
-  promptsRemaining: 5,
+  gameState: 'EXPLORING',
   occupiedCells: new Set(),
   placedObjects: [],
 
