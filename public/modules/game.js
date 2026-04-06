@@ -8,16 +8,10 @@ import { createPlayer, updatePlayer } from './player.js';
 import { loadPlayerModel } from './character.js';
 import { initAvatarPicker } from './avatar-picker.js';
 import { setupPlayerControls } from './controls.js';
-import { initHUD, updateHUD } from './hud.js';
 import { initPortals, updatePortals } from './portals.js';
 
 export function init() {
   // Populate DOM refs
-  state.dom.hudPips = document.getElementById('hud-pips');
-  state.dom.tabHint = document.getElementById('tab-hint');
-  state.dom.promptBar = document.getElementById('prompt-bar');
-  state.dom.promptInput = document.getElementById('prompt-input');
-  state.dom.materializingEl = document.getElementById('materializing');
   state.dom.errorToast = document.getElementById('error-toast');
 
   createRenderer();
@@ -34,8 +28,6 @@ export function init() {
   setupPlayerControls();
   loadPlayerModel();
   initAvatarPicker();
-  initHUD();
-  updateHUD();
   initPortals(state.scene, state.player);
 
   window.addEventListener('resize', onResize);

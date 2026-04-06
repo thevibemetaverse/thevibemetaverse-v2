@@ -9,34 +9,10 @@
     body { overflow: hidden; background: #87CEEB; font-family: 'Courier New', monospace; }
     canvas { display: block; }
 
-    #hud-left {
-      position: fixed; top: 20px; left: 20px;
-      display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
-      z-index: 10; pointer-events: none;
-    }
     #hud {
       position: fixed; top: 20px; right: 20px;
       z-index: 10; pointer-events: none;
     }
-    #hud-pips {
-      display: flex; gap: 6px;
-    }
-    .pip {
-      width: 14px; height: 14px; border-radius: 50%;
-      border: 2px solid rgba(255,255,255,0.9);
-      background: rgba(255,255,255,0.9);
-      transition: background 0.3s, border-color 0.3s;
-    }
-    .pip.used {
-      background: transparent;
-      border-color: rgba(255,255,255,0.4);
-    }
-    #tab-hint {
-      color: rgba(255,255,255,0.85);
-      font-size: 13px;
-      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-    }
-
     #github-link {
       display: flex; align-items: center; justify-content: center;
       color: rgba(255,255,255,0.9);
@@ -51,39 +27,6 @@
     #github-link svg {
       width: 26px; height: 26px;
       filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
-    }
-
-    #prompt-bar {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      display: none; align-items: center;
-      padding: 12px 20px;
-      background: rgba(0,0,0,0.65);
-      backdrop-filter: blur(8px);
-      z-index: 20;
-    }
-    #prompt-bar.visible { display: flex; }
-    #prompt-label {
-      color: rgba(255,255,255,0.6); font-size: 14px; margin-right: 12px;
-      white-space: nowrap;
-    }
-    #prompt-input {
-      flex: 1; background: transparent; border: none; outline: none;
-      color: #fff; font-size: 16px; font-family: 'Courier New', monospace;
-    }
-    #prompt-input::placeholder { color: rgba(255,255,255,0.35); }
-
-    #materializing {
-      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      display: none;
-      color: #fff; font-size: 20px;
-      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-      z-index: 20; pointer-events: none;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-    #materializing.visible { display: block; }
-    @keyframes pulse {
-      0%, 100% { opacity: 0.6; }
-      50% { opacity: 1; }
     }
 
     #error-toast {
@@ -133,10 +76,6 @@
   <script async src="https://jam.pieter.com/2026/widget.js"></script>
 </head>
 <body>
-  <div id="hud-left">
-    <div id="hud-pips"></div>
-    <div id="tab-hint">TAB to create</div>
-  </div>
   <div id="hud">
     <a id="github-link" href="https://github.com/thevibemetaverse/portals" target="_blank" rel="noopener noreferrer" aria-label="The Vibe Metaverse v2 on GitHub">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -144,11 +83,6 @@
       </svg>
     </a>
   </div>
-  <div id="prompt-bar">
-    <span id="prompt-label">create &gt;</span>
-    <input id="prompt-input" type="text" placeholder="Describe an object..." autocomplete="off" />
-  </div>
-  <div id="materializing">Materializing...</div>
   <div id="error-toast"></div>
 
   <div id="avatar-picker" role="toolbar" aria-label="Avatar">

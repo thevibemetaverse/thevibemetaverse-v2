@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { PORTALS_PRODUCTION_ORIGIN } from './vendor/portals/sdk/network.js';
@@ -74,66 +74,6 @@ if (existsSync(siblingPortals)) {
   app.use('/vendor/portals', express.static(siblingPortals));
 }
 app.use('/vendor/portals', express.static(join(__dirname, 'vendor', 'portals')));
-
-const CODEGEN_SYSTEM_PROMPT = readFileSync(
-  join(__dirname, 'prompts', 'codegen-system.txt'), 'utf-8'
-);
-
-/** Strip markdown code fences and extract just the JS code body. */
-function extractCode(text) {
-  let code = text.replace(/^```(?:javascript|js)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
-  const fnMatch = code.match(/^(?:function\s*\w*\s*\(\s*THREE\s*\)\s*\{)([\s\S]*)\}\s*$/);
-  if (fnMatch) code = fnMatch[1].trim();
-  return code;
-}
-
-app.post('/api/generate', async (req, res) => {
-  const { prompt } = req.body;
-  if (!prompt || typeof prompt !== 'string') {
-    return res.status(400).json({ error: 'Missing prompt' });
-  }
-
-  const apiKey = process.env.CLAUDE_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'API key not configured' });
-  }
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8192,
-        system: CODEGEN_SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: `Create: ${prompt}` }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('Claude API error:', response.status, errText);
-      return res.status(502).json({ error: 'AI generation failed' });
-    }
-
-    const data = await response.json();
-    const text = data.content.map(c => c.text || '').join('');
-    const code = extractCode(text);
-
-    if (!code || code.length < 10) {
-      return res.status(502).json({ error: 'AI returned empty code' });
-    }
-
-    res.json({ code });
-  } catch (err) {
-    console.error('Generate error:', err);
-    res.status(500).json({ error: 'Generation failed' });
-  }
-});
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
