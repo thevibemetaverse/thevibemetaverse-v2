@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Tree } from '@dgreenheck/ez-tree';
 import { state } from './state.js';
 import { seededRandom } from './utils.js';
 import { GROUND_SIZE, SKY_RADIUS, TREE_COUNT, TREE_MIN_DIST, TREE_MAX_DIST, TREE_CLEARANCE } from './constants.js';
@@ -102,17 +103,88 @@ function createHills() {
   }
 }
 
-function createTrees() {
-  const trunkGeo = new THREE.CylinderGeometry(0.15, 0.25, 2, 8);
-  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x6B4226 });
-  const canopyGeo = new THREE.SphereGeometry(1, 8, 6);
-  const canopyMat = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+/** Base preset for ez-tree — deciduous oak style */
+const BASE_PRESET = {
+  seed: 31055,
+  type: 'deciduous',
+  bark: {
+    type: 'oak',
+    tint: 13552830,
+    flatShading: false,
+    textured: true,
+    textureScale: { x: 0.5, y: 5 },
+  },
+  branch: {
+    levels: 3,
+    angle: { 1: 39, 2: 39, 3: 51 },
+    children: { 0: 10, 1: 4, 2: 3 },
+    force: { direction: { x: 0, y: 1, z: 0 }, strength: -0.010869565217391311 },
+    gnarliness: { 0: -0.05, 1: 0.2, 2: 0.16, 3: 0.049999999999999996 },
+    length: { 0: 45, 1: 29.42, 2: 15.3, 3: 4.6 },
+    radius: { 0: 3.03, 1: 0.53, 2: 0.79, 3: 1.11 },
+    sections: { 0: 12, 1: 8, 2: 6, 3: 4 },
+    segments: { 0: 8, 1: 6, 2: 4, 3: 3 },
+    start: { 1: 0.32, 2: 0.34, 3: 0 },
+    taper: { 0: 0.7, 1: 0.6199999999999999, 2: 0.7599999999999999, 3: 0 },
+    twist: { 0: 0.09, 1: -0.07, 2: 0, 3: 0 },
+  },
+  leaves: {
+    type: 'ash',
+    billboard: 'double',
+    angle: 30,
+    count: 10,
+    start: 0.01,
+    size: 4.62,
+    sizeVariance: 0.72,
+    tint: 16777215,
+    alphaTest: 0.5,
+  },
+};
 
+/**
+ * Deep-clone the base preset and apply per-tree variation so each tree
+ * looks slightly different while staying cohesive.
+ */
+function variedPreset(rand) {
+  const p = JSON.parse(JSON.stringify(BASE_PRESET));
+
+  // Unique seed per tree
+  p.seed = Math.floor(rand() * 65536);
+
+  // Slight trunk length variation (±15%)
+  const lengthScale = 0.85 + rand() * 0.30;
+  p.branch.length[0] *= lengthScale;
+  p.branch.length[1] *= lengthScale;
+
+  // Vary children count on trunk (5-9)
+  p.branch.children[0] = 5 + Math.floor(rand() * 5);
+
+  // Slight gnarliness variation
+  p.branch.gnarliness[1] = 0.15 + rand() * 0.20;
+
+  // Vary leaf count (12-20) and size (2.0-3.2)
+  p.leaves.count = 12 + Math.floor(rand() * 9);
+  p.leaves.size = 2.0 + rand() * 1.2;
+
+  // Slight branching angle variation
+  p.branch.angle[1] = 40 + Math.floor(rand() * 20);
+  p.branch.angle[2] = 65 + Math.floor(rand() * 25);
+
+  return p;
+}
+
+/**
+ * Apply a preset object to a Tree instance's options using its built-in copy().
+ */
+function applyPreset(tree, preset) {
+  tree.options.copy(preset);
+}
+
+function createTrees() {
   const rand = seededRandom(123);
 
   const treePositions = [];
   const treeCount = TREE_COUNT;
-  /** Inner radius keeps spawn and the portal row (negative Z) clear of canopy. */
   const minDist = TREE_MIN_DIST;
   const maxDist = TREE_MAX_DIST;
   let attempts = 0;
@@ -128,25 +200,25 @@ function createTrees() {
       (p) => Math.hypot(p.x - x, p.z - z) < TREE_CLEARANCE
     );
     if (tooClose) continue;
-    // Extra guard: keep a wedge toward negative Z clear for portal sightlines
-    if (Math.abs(x) < 32 && z < 8 && z > -34) continue;
+    // Keep a big circle around spawn clear so the player has open space
+    if (Math.hypot(x, z) < 100) continue;
 
     treePositions.push({ x, z });
 
-    const tree = new THREE.Group();
+    const preset = variedPreset(rand);
+    const tree = new Tree();
+    applyPreset(tree, preset);
+    tree.generate();
 
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.y = 1;
-    trunk.castShadow = true;
-    tree.add(trunk);
+    // Enable shadows on all meshes
+    tree.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
 
-    const canopy = new THREE.Mesh(canopyGeo, canopyMat.clone());
-    canopy.material.color.offsetHSL(0, (rand() - 0.5) * 0.1, (rand() - 0.5) * 0.1);
-    canopy.position.y = 2.5;
-    canopy.castShadow = true;
-    tree.add(canopy);
-
-    const scale = 0.7 + rand() * 0.8;
+    const scale = 0.35 + rand() * 0.15; // scale so trees are ~3x character height
     tree.scale.set(scale, scale, scale);
     tree.position.set(x, 0, z);
     tree.rotation.y = rand() * Math.PI * 2;
