@@ -5,10 +5,8 @@ import { SKY_RADIUS } from './constants.js';
 /** @type {THREE.ShaderMaterial | null} */
 let cloudMaterial = null;
 
-let elapsedTime = 0;
-
 export function initClouds() {
-  const geo = new THREE.SphereGeometry(SKY_RADIUS - 1, 64, 32);
+  const geo = new THREE.SphereGeometry(SKY_RADIUS - 1, 32, 16);
 
   cloudMaterial = new THREE.ShaderMaterial({
     uniforms: {
@@ -64,12 +62,28 @@ export function initClouds() {
         return v;
       }
 
+      // Fewer octaves — used only for shadow offset; correlates with main shape, much cheaper than a second full FBM.
+      float fbmLo(vec2 p) {
+        float v = 0.0;
+        float a = 0.5;
+        v += a * noise(p); p *= 2.03; a *= 0.48;
+        v += a * noise(p); p *= 2.03; a *= 0.48;
+        v += a * noise(p);
+        return v;
+      }
+
       float cloudShape(vec2 p) {
         vec2 wind = vec2(uTime * uWindSpeed, uTime * uWindSpeed * 0.3);
         p += wind;
-        // Light domain warp for soft organic shapes without swirls
         float warp = fbm(p + vec2(5.2, 1.3));
         return fbm(p + warp * 0.6);
+      }
+
+      float cloudShapeShadow(vec2 p) {
+        vec2 wind = vec2(uTime * uWindSpeed, uTime * uWindSpeed * 0.3);
+        p += wind;
+        float warp = fbmLo(p + vec2(5.2, 1.3));
+        return fbmLo(p + warp * 0.6);
       }
 
       void main() {
@@ -93,8 +107,8 @@ export function initClouds() {
 
         if (cloud < 0.01) discard;
 
-        // Lighting
-        float n2 = cloudShape(uv + vec2(0.03, 0.02));
+        // Lighting — cheap correlated sample at offset (not a second 6-octave FBM)
+        float n2 = cloudShapeShadow(uv + vec2(0.03, 0.02));
         float shadow = smoothstep(0.0, 0.4, n2 - n);
         float light = 1.0 - shadow * 0.5;
 
@@ -121,7 +135,6 @@ export function initClouds() {
 /** @param {number} delta */
 export function updateClouds(delta) {
   if (cloudMaterial) {
-    elapsedTime += delta;
-    cloudMaterial.uniforms.uTime.value = elapsedTime;
+    cloudMaterial.uniforms.uTime.value += delta;
   }
 }

@@ -4,8 +4,10 @@ import { state } from './state.js';
 const BLADE_WIDTH = 0.12;
 const BLADE_HEIGHT = 1;
 const BLADE_JOINTS = 5;
-const INSTANCE_COUNT = 50000;
-const GRASS_WIDTH = 100;
+const INSTANCES_PER_PATCH = 50000;
+const PATCH_SIZE = 100;
+// Grid of patches: 4×4 covers ±200 units (fog hides anything further)
+const GRID_CELLS = 4;
 
 let grassMaterial = null;
 
@@ -17,26 +19,6 @@ export function initGrass() {
   // Base blade geometry — a thin plane subdivided along Y for bending
   const baseGeom = new THREE.PlaneGeometry(BLADE_WIDTH, BLADE_HEIGHT, 1, BLADE_JOINTS);
   baseGeom.translate(0, BLADE_HEIGHT / 2, 0);
-
-  // Build instanced geometry
-  const instancedGeo = new THREE.InstancedBufferGeometry();
-  instancedGeo.index = baseGeom.index;
-  instancedGeo.attributes.position = baseGeom.attributes.position;
-  instancedGeo.attributes.uv = baseGeom.attributes.uv;
-  instancedGeo.instanceCount = INSTANCE_COUNT;
-
-  const attrData = getAttributeData(INSTANCE_COUNT, GRASS_WIDTH);
-
-  instancedGeo.setAttribute('offset',
-    new THREE.InstancedBufferAttribute(new Float32Array(attrData.offsets), 3));
-  instancedGeo.setAttribute('orientation',
-    new THREE.InstancedBufferAttribute(new Float32Array(attrData.orientations), 4));
-  instancedGeo.setAttribute('stretch',
-    new THREE.InstancedBufferAttribute(new Float32Array(attrData.stretches), 1));
-  instancedGeo.setAttribute('halfRootAngleSin',
-    new THREE.InstancedBufferAttribute(new Float32Array(attrData.halfRootAngleSin), 1));
-  instancedGeo.setAttribute('halfRootAngleCos',
-    new THREE.InstancedBufferAttribute(new Float32Array(attrData.halfRootAngleCos), 1));
 
   grassMaterial = new THREE.ShaderMaterial({
     uniforms: {
@@ -150,15 +132,46 @@ export function initGrass() {
     toneMapped: false,
   });
 
-  const grassMesh = new THREE.Mesh(instancedGeo, grassMaterial);
-  // Set a manual bounding sphere so frustum culling works without computing per-instance bounds
-  const halfW = GRASS_WIDTH / 2;
-  const maxH = BLADE_HEIGHT * 2.8; // account for max stretch
-  instancedGeo.boundingSphere = new THREE.Sphere(
-    new THREE.Vector3(0, maxH / 2, 0),
-    Math.sqrt(halfW * halfW + (maxH / 2) * (maxH / 2) + halfW * halfW)
-  );
-  state.scene.add(grassMesh);
+  // Create a grid of grass patches, each with the original density
+  const halfGrid = (GRID_CELLS * PATCH_SIZE) / 2;
+  const halfPatch = PATCH_SIZE / 2;
+  const maxH = BLADE_HEIGHT * 2.8;
+
+  for (let gx = 0; gx < GRID_CELLS; gx++) {
+    for (let gz = 0; gz < GRID_CELLS; gz++) {
+      const centerX = -halfGrid + halfPatch + gx * PATCH_SIZE;
+      const centerZ = -halfGrid + halfPatch + gz * PATCH_SIZE;
+
+      const instancedGeo = new THREE.InstancedBufferGeometry();
+      instancedGeo.index = baseGeom.index;
+      instancedGeo.attributes.position = baseGeom.attributes.position;
+      instancedGeo.attributes.uv = baseGeom.attributes.uv;
+      instancedGeo.instanceCount = INSTANCES_PER_PATCH;
+
+      const attrData = getAttributeData(INSTANCES_PER_PATCH, PATCH_SIZE, centerX, centerZ);
+
+      instancedGeo.setAttribute('offset',
+        new THREE.InstancedBufferAttribute(new Float32Array(attrData.offsets), 3));
+      instancedGeo.setAttribute('orientation',
+        new THREE.InstancedBufferAttribute(new Float32Array(attrData.orientations), 4));
+      instancedGeo.setAttribute('stretch',
+        new THREE.InstancedBufferAttribute(new Float32Array(attrData.stretches), 1));
+      instancedGeo.setAttribute('halfRootAngleSin',
+        new THREE.InstancedBufferAttribute(new Float32Array(attrData.halfRootAngleSin), 1));
+      instancedGeo.setAttribute('halfRootAngleCos',
+        new THREE.InstancedBufferAttribute(new Float32Array(attrData.halfRootAngleCos), 1));
+
+      // Tight bounding sphere per patch for effective frustum culling
+      instancedGeo.boundingSphere = new THREE.Sphere(
+        new THREE.Vector3(centerX, maxH / 2, centerZ),
+        Math.sqrt(halfPatch * halfPatch + (maxH / 2) * (maxH / 2) + halfPatch * halfPatch)
+      );
+
+      const grassMesh = new THREE.Mesh(instancedGeo, grassMaterial);
+      grassMesh.frustumCulled = true;
+      state.scene.add(grassMesh);
+    }
+  }
 }
 
 export function updateGrass() {
@@ -167,7 +180,7 @@ export function updateGrass() {
   }
 }
 
-function getAttributeData(instances, width) {
+function getAttributeData(instances, width, offsetCenterX, offsetCenterZ) {
   const offsets = [];
   const orientations = [];
   const stretches = [];
@@ -181,8 +194,8 @@ function getAttributeData(instances, width) {
   const max = 0.25;
 
   for (let i = 0; i < instances; i++) {
-    const offsetX = Math.random() * width - width / 2;
-    const offsetZ = Math.random() * width - width / 2;
+    const offsetX = offsetCenterX + Math.random() * width - width / 2;
+    const offsetZ = offsetCenterZ + Math.random() * width - width / 2;
     const offsetY = 0; // flat ground
     offsets.push(offsetX, offsetY, offsetZ);
 

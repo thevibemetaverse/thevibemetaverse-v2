@@ -37,6 +37,7 @@ function createSky() {
     `,
     side: THREE.BackSide,
     depthWrite: false,
+    fog: false,
   });
   state.scene.add(new THREE.Mesh(skyGeo, skyMat));
 }
@@ -54,24 +55,30 @@ function createHills() {
   const hillColor = new THREE.Color(0x6BBF47);
 
   const clusters = [
-    { x: 0, z: -60, count: 4 },
-    { x: 40, z: -50, count: 3 },
-    { x: -40, z: -50, count: 3 },
-    { x: 65, z: -30, count: 3 },
-    { x: -65, z: -30, count: 3 },
-    { x: 55, z: -55, count: 2 },
-    { x: -55, z: -55, count: 2 },
-    { x: 80, z: -10, count: 2 },
-    { x: -80, z: -10, count: 2 },
-    { x: 30, z: -70, count: 2 },
-    { x: -30, z: -70, count: 2 },
+    { x: 0, z: -200, count: 5 },
+    { x: 120, z: -170, count: 4 },
+    { x: -120, z: -170, count: 4 },
+    { x: 200, z: -100, count: 3 },
+    { x: -200, z: -100, count: 3 },
+    { x: 170, z: -180, count: 3 },
+    { x: -170, z: -180, count: 3 },
+    { x: 240, z: -40, count: 3 },
+    { x: -240, z: -40, count: 3 },
+    { x: 90, z: -220, count: 3 },
+    { x: -90, z: -220, count: 3 },
+    // Rear ring — full surround
+    { x: 0, z: 220, count: 4 },
+    { x: 150, z: 180, count: 3 },
+    { x: -150, z: 180, count: 3 },
+    { x: 230, z: 80, count: 3 },
+    { x: -230, z: 80, count: 3 },
   ];
 
   const rand = seededRandom(42);
 
   for (const cluster of clusters) {
     for (let i = 0; i < cluster.count; i++) {
-      const radius = 10 + rand() * 15;
+      const radius = 20 + rand() * 30;
       const geo = new THREE.SphereGeometry(radius, 24, 16);
 
       const color = hillColor.clone();
@@ -81,8 +88,8 @@ function createHills() {
       const hill = new THREE.Mesh(geo, mat);
       hill.scale.y = 0.35 + rand() * 0.25;
 
-      const offsetX = (rand() - 0.5) * 15;
-      const offsetZ = (rand() - 0.5) * 10;
+      const offsetX = (rand() - 0.5) * 30;
+      const offsetZ = (rand() - 0.5) * 20;
       hill.position.set(
         cluster.x + offsetX,
         -(radius * hill.scale.y * 0.3),
@@ -110,7 +117,7 @@ function createTrees() {
   const maxDist = TREE_MAX_DIST;
   let attempts = 0;
 
-  while (treePositions.length < treeCount && attempts < 800) {
+  while (treePositions.length < treeCount && attempts < 1500) {
     attempts++;
     const angle = rand() * Math.PI * 2;
     const dist = minDist + rand() * (maxDist - minDist);
