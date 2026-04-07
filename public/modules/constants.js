@@ -26,7 +26,7 @@ export const SKY_RADIUS = 800;
 export const FOG_DENSITY = 0.004;
 export const TREE_COUNT = 30;
 export const TREE_MIN_DIST = 40;
-export const TREE_MAX_DIST = 140;
+export const TREE_MAX_DIST = 250;
 export const TREE_CLEARANCE = 10;           // min distance between trees (larger for bigger trees)
 
 // -- Portals --

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Tree } from '@dgreenheck/ez-tree';
 import { state } from './state.js';
 import { seededRandom } from './utils.js';
@@ -180,49 +181,102 @@ function applyPreset(tree, preset) {
   tree.options.copy(preset);
 }
 
+/**
+ * Compute tree placement positions up-front (cheap), then generate and
+ * merge geometry in batches via requestIdleCallback so the main thread
+ * stays responsive during load.
+ */
 function createTrees() {
   const rand = seededRandom(123);
 
-  const treePositions = [];
-  const treeCount = TREE_COUNT;
-  const minDist = TREE_MIN_DIST;
-  const maxDist = TREE_MAX_DIST;
+  // --- 1. Compute positions (fast) ---
+  const positions = [];
   let attempts = 0;
-
-  while (treePositions.length < treeCount && attempts < 1500) {
+  while (positions.length < TREE_COUNT && attempts < 1500) {
     attempts++;
     const angle = rand() * Math.PI * 2;
-    const dist = minDist + rand() * (maxDist - minDist);
+    const dist = TREE_MIN_DIST + rand() * (TREE_MAX_DIST - TREE_MIN_DIST);
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
 
-    const tooClose = treePositions.some(
+    const tooClose = positions.some(
       (p) => Math.hypot(p.x - x, p.z - z) < TREE_CLEARANCE
     );
     if (tooClose) continue;
     // Keep a big circle around spawn clear so the player has open space
     if (Math.hypot(x, z) < 100) continue;
 
-    treePositions.push({ x, z });
-
-    const preset = variedPreset(rand);
-    const tree = new Tree();
-    applyPreset(tree, preset);
-    tree.generate();
-
-    // Enable shadows on all meshes
-    tree.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      }
-    });
-
-    const scale = 0.35 + rand() * 0.15; // scale so trees are ~3x character height
-    tree.scale.set(scale, scale, scale);
-    tree.position.set(x, 0, z);
-    tree.rotation.y = rand() * Math.PI * 2;
-
-    state.scene.add(tree);
+    const scale = 0.35 + rand() * 0.15;
+    const rotY = rand() * Math.PI * 2;
+    positions.push({ x, z, scale, rotY, preset: variedPreset(rand) });
   }
+
+  // --- 2. Generate trees in batches off the main thread ---
+  const BATCH = 5;
+  let idx = 0;
+  const barkGeoms = [];
+  const leafGeoms = [];
+  let barkMat = null;
+  let leafMat = null;
+
+  function processBatch() {
+    const end = Math.min(idx + BATCH, positions.length);
+    for (; idx < end; idx++) {
+      const p = positions[idx];
+      const tree = new Tree();
+      applyPreset(tree, p.preset);
+      tree.generate();
+
+      tree.scale.set(p.scale, p.scale, p.scale);
+      tree.position.set(p.x, 0, p.z);
+      tree.rotation.y = p.rotY;
+      tree.updateMatrixWorld(true);
+
+      // Collect transformed geometries and materials
+      tree.traverse((child) => {
+        if (!child.isMesh) return;
+        const geo = child.geometry.clone();
+        geo.applyMatrix4(child.matrixWorld);
+
+        // Bark meshes have textured materials, leaves have alpha
+        if (child.material.alphaTest > 0) {
+          leafGeoms.push(geo);
+          if (!leafMat) leafMat = child.material;
+        } else {
+          barkGeoms.push(geo);
+          if (!barkMat) barkMat = child.material;
+        }
+      });
+
+      tree.traverse((child) => {
+        if (child.isMesh) {
+          child.geometry.dispose();
+          if (child.material.map) child.material.map.dispose();
+        }
+      });
+    }
+
+    if (idx < positions.length) {
+      // More trees to generate — yield to main thread
+      (typeof requestIdleCallback === 'function' ? requestIdleCallback : requestAnimationFrame)(processBatch);
+    } else {
+      // --- 3. Merge into 2 draw calls ---
+      if (barkGeoms.length) {
+        const merged = mergeGeometries(barkGeoms, false);
+        const mesh = new THREE.Mesh(merged, barkMat);
+        mesh.castShadow = true;
+        state.scene.add(mesh);
+        barkGeoms.forEach((g) => g.dispose());
+      }
+      if (leafGeoms.length) {
+        const merged = mergeGeometries(leafGeoms, false);
+        const mesh = new THREE.Mesh(merged, leafMat);
+        mesh.castShadow = true;
+        state.scene.add(mesh);
+        leafGeoms.forEach((g) => g.dispose());
+      }
+    }
+  }
+
+  processBatch();
 }
