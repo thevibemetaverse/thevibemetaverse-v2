@@ -84,10 +84,12 @@ export async function initPortals(scene, player) {
     portals.push({ data: hubExitEntry, group });
   }
 
-  // Position all portals in a flat row
+  // Position and scale all portals in a flat row
+  const PORTAL_SCALE = 2.5;
   for (let i = 0; i < portals.length; i++) {
     const slotIndex = i < registryData.length ? i : hubSlotIndex;
     const x = portalRowSlotX(slotIndex, totalSlots, PORTAL_ROW_SPACING);
+    portals[i].group.scale.setScalar(PORTAL_SCALE);
     portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, PORTAL_ROW_Z);
     portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, 0);
   }

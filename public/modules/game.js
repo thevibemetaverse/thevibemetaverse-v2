@@ -10,6 +10,8 @@ import { loadPlayerModel } from './character.js';
 import { initAvatarPicker } from './avatar-picker.js';
 import { setupPlayerControls } from './controls.js';
 import { initPortals, updatePortals } from './portals.js';
+import { initGrass, updateGrass } from './grass.js';
+import { initSettings, updateSettings } from './settings.js';
 
 export function init() {
   // Populate DOM refs
@@ -23,6 +25,7 @@ export function init() {
 
   createCamera();
   createWorld();
+  initGrass();
   setupLighting();
   createPlayer();
 
@@ -30,6 +33,7 @@ export function init() {
   loadPlayerModel();
   initAvatarPicker();
   initPortals(state.scene, state.player);
+  initSettings();
 
   window.addEventListener('resize', onResize);
   animate();
@@ -39,8 +43,10 @@ function animate() {
   requestAnimationFrame(animate);
   const delta = Math.min(state.clock.getDelta(), MAX_DELTA);
   updatePlayer(delta);
+  updateGrass();
   updatePortals();
   updateCamera();
   if (state.animationMixer) state.animationMixer.update(delta);
+  updateSettings();
   state.renderer.render(state.scene, state.camera);
 }
