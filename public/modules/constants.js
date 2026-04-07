@@ -18,6 +18,7 @@ export const CAMERA_ORBIT_HEIGHT = 12;
 export const CAMERA_LOOK_Y_WITH_MODEL = 4.0;
 export const CAMERA_LOOK_Y_WITHOUT_MODEL = 2.0;
 export const CAMERA_ORBIT_SENSITIVITY = 0.006; // radians per pixel of mouse movement
+export const CAMERA_ORBIT_SENSITIVITY_TOUCH = 0.012; // radians per pixel of touch drag
 
 // -- World --
 export const GROUND_SIZE = 300;

@@ -9,6 +9,7 @@ import { createPlayer, updatePlayer } from './player.js';
 import { loadPlayerModel } from './character.js';
 import { initAvatarPicker } from './avatar-picker.js';
 import { setupPlayerControls } from './controls.js';
+import { initMobileControls } from './mobile-controls.js';
 import { initPortals, updatePortals } from './portals.js';
 import { initGrass, updateGrass } from './grass.js';
 import { initSettings, updateSettings } from './settings.js';
@@ -32,6 +33,7 @@ export function init() {
   createPlayer();
 
   setupPlayerControls();
+  initMobileControls();
   loadPlayerModel();
   initAvatarPicker();
   initPortals(state.scene, state.player);

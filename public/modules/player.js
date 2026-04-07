@@ -29,6 +29,11 @@ export function updatePlayer(delta) {
   if (state.keys['KeyA'] || state.keys['ArrowLeft']) move.sub(right);
   if (state.keys['KeyD'] || state.keys['ArrowRight']) move.add(right);
 
+  if (state.moveInput.x !== 0 || state.moveInput.z !== 0) {
+    move.x += forward.x * -state.moveInput.z + right.x * state.moveInput.x;
+    move.z += forward.z * -state.moveInput.z + right.z * state.moveInput.x;
+  }
+
   const isMoving = move.lengthSq() > 0;
   setMovingAnimation(isMoving);
 
