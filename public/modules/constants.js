@@ -5,7 +5,7 @@
 
 // -- Player --
 export const PLAYER_MOVE_SPEED = 32;        // units per second
-export const PLAYER_WORLD_LIMIT = 120;      // clamp position to ±limit
+export const PLAYER_WORLD_LIMIT = 300;      // clamp position to ±limit
 export const PLAYER_TARGET_HEIGHT = 10.0;   // avatar scale target (units)
 export const ANIMATION_CROSSFADE = 0.25;    // seconds for idle↔run blend
 
@@ -21,12 +21,12 @@ export const CAMERA_ORBIT_SENSITIVITY = 0.006; // radians per pixel of mouse mov
 export const CAMERA_ORBIT_SENSITIVITY_TOUCH = 0.012; // radians per pixel of touch drag
 
 // -- World --
-export const GROUND_SIZE = 300;
-export const SKY_RADIUS = 400;
-export const FOG_DENSITY = 0.006;
-export const TREE_COUNT = 18;
-export const TREE_MIN_DIST = 30;
-export const TREE_MAX_DIST = 56;
+export const GROUND_SIZE = 800;
+export const SKY_RADIUS = 800;
+export const FOG_DENSITY = 0.004;
+export const TREE_COUNT = 30;
+export const TREE_MIN_DIST = 40;
+export const TREE_MAX_DIST = 140;
 export const TREE_CLEARANCE = 4;            // min distance between trees
 
 // -- Portals --

@@ -15,6 +15,7 @@ import { initGrass, updateGrass } from './grass.js';
 import { initSettings, updateSettings } from './settings.js';
 import { initModels } from './models.js';
 import { initDevTools } from './dev-tools.js';
+import { initClouds, updateClouds } from './clouds.js';
 
 export function init() {
   // Populate DOM refs
@@ -28,6 +29,7 @@ export function init() {
 
   createCamera();
   createWorld();
+  initClouds();
   initGrass();
   setupLighting();
   createPlayer();
@@ -50,6 +52,7 @@ function animate() {
   const delta = Math.min(state.clock.getDelta(), MAX_DELTA);
   updatePlayer(delta);
   updateGrass();
+  updateClouds(delta);
   updatePortals();
   updateCamera();
   if (state.animationMixer) state.animationMixer.update(delta);
