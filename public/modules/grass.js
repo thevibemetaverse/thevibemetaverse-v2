@@ -91,14 +91,13 @@ export function initGrass() {
       }
 
       vec4 slerp(vec4 v0, vec4 v1, float t) {
-        normalize(v0);
-        normalize(v1);
+        v0 = normalize(v0);
+        v1 = normalize(v1);
         float dot_ = dot(v0, v1);
         if (dot_ < 0.0) { v1 = -v1; dot_ = -dot_; }
         const float DOT_THRESHOLD = 0.9995;
         if (dot_ > DOT_THRESHOLD) {
-          vec4 result = t*(v1 - v0) + v0;
-          normalize(result);
+          vec4 result = normalize(t*(v1 - v0) + v0);
           return result;
         }
         float theta_0 = acos(dot_);
@@ -138,9 +137,9 @@ export function initGrass() {
       void main() {
         float alpha = texture2D(alphaMap, vUv).r;
         if (alpha < 0.15) discard;
-        vec4 col = vec4(texture2D(map, vUv));
-        col = mix(vec4(tipColor, 1.0), col, frc);
-        col = mix(vec4(bottomColor, 1.0), col, frc);
+        vec4 col = texture2D(map, vUv);
+        vec3 grassColor = mix(bottomColor, tipColor, frc);
+        col.rgb = mix(grassColor, col.rgb, frc);
         gl_FragColor = col;
 
         #include <tonemapping_fragment>
@@ -152,7 +151,13 @@ export function initGrass() {
   });
 
   const grassMesh = new THREE.Mesh(instancedGeo, grassMaterial);
-  grassMesh.frustumCulled = false;
+  // Set a manual bounding sphere so frustum culling works without computing per-instance bounds
+  const halfW = GRASS_WIDTH / 2;
+  const maxH = BLADE_HEIGHT * 2.8; // account for max stretch
+  instancedGeo.boundingSphere = new THREE.Sphere(
+    new THREE.Vector3(0, maxH / 2, 0),
+    Math.sqrt(halfW * halfW + (maxH / 2) * (maxH / 2) + halfW * halfW)
+  );
   state.scene.add(grassMesh);
 }
 

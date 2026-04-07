@@ -2,6 +2,7 @@ import { state } from './state.js';
 
 let panel;
 let fpsEl;
+let panelVisible = false;
 let frames = 0;
 let lastTime = performance.now();
 
@@ -21,7 +22,7 @@ export function initSettings() {
 }
 
 export function updateSettings() {
-  if (panel.classList.contains('hidden')) return;
+  if (!panelVisible) return;
   frames++;
   const now = performance.now();
   if (now - lastTime >= 500) {
@@ -33,8 +34,9 @@ export function updateSettings() {
 }
 
 function toggle(force) {
-  panel.classList.toggle('hidden', force !== undefined ? !force : undefined);
-  if (!panel.classList.contains('hidden')) {
+  panelVisible = force !== undefined ? force : !panelVisible;
+  panel.classList.toggle('hidden', !panelVisible);
+  if (panelVisible) {
     frames = 0;
     lastTime = performance.now();
     fpsEl.textContent = '--';
