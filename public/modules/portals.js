@@ -86,24 +86,9 @@ export async function initPortals(scene, player) {
     portals.push({ data: hubExitEntry, group });
   }
 
-  // Position and scale all portals in a flat row
-  const PORTAL_SCALE = 2.5;
-  for (let i = 0; i < portals.length; i++) {
-    const slotIndex = i < registryData.length ? i : hubSlotIndex;
-    const x =
-      portalRowSlotX(slotIndex, totalSlots, PORTAL_ROW_SPACING) +
-      PORTAL_ROW_OFFSET_X;
-    portals[i].group.scale.setScalar(PORTAL_SCALE);
-    portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, PORTAL_ROW_Z);
-    portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, 0);
-  }
-
-  // Green Vibeverse portal — place in the slot *after* the hub row so it never stacks on the hub
-  // (previously PORTAL_PIETER_X - PORTAL_ROW_SPACING matched the rightmost hub slot).
-  const pieterX =
-    portalRowSlotX(totalSlots, totalSlots + 1, PORTAL_ROW_SPACING) +
-    PORTAL_ROW_OFFSET_X +
-    PORTAL_PIETER_TORUS_EXTRA_X;
+  // Pieter portal is anchored at a fixed X on the right.
+  // Registry portals extend leftward from there.
+  const pieterX = PORTAL_PIETER_X;
   pieterPortal = createTorusPortal(scene, {
     color: 0x00ff00,
     label: 'VIBEVERSE PORTAL',
@@ -115,14 +100,26 @@ export async function initPortals(scene, player) {
     ),
   });
 
+  // Position and scale registry portals extending leftward from pieter portal
+  const PORTAL_SCALE = 2.5;
+  for (let i = 0; i < portals.length; i++) {
+    const slotIndex = i < registryData.length ? i : hubSlotIndex;
+    // Rightmost registry slot sits one spacing left of pieter; rest extend further left
+    const x = pieterX - (totalSlots - slotIndex) * PORTAL_ROW_SPACING;
+    portals[i].group.scale.setScalar(PORTAL_SCALE);
+    portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, PORTAL_ROW_Z);
+    portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, 0);
+  }
+
   // Red custom return portal (only when ?portal is set)
+  // Place it one spacing to the right of pieter so it never overlaps.
   if (wantCustomPortal) {
     customRefPortal = createTorusPortal(scene, {
       color: 0xff0000,
       label: 'CUSTOM PORTAL',
       name: 'custom-ref-portal',
       position: new THREE.Vector3(
-        PORTAL_PIETER_X + PORTAL_ROW_OFFSET_X,
+        pieterX + PORTAL_ROW_SPACING,
         PORTAL_PIETER_ELEVATION_Y,
         PORTAL_ROW_Z
       ),
