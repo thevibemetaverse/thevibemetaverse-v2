@@ -35,6 +35,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
  * @property {GameState} gameState
  * @property {Set<string>} occupiedCells - Grid cell keys ("x,z") claimed by placed objects
  * @property {THREE.Object3D[]} placedObjects - AI-generated objects added to the scene
+ * @property {boolean} devMode - Whether dev tools are active
  *
  * @property {DomRefs} dom
  */
@@ -66,6 +67,7 @@ export const state = {
   gameState: 'EXPLORING',
   occupiedCells: new Set(),
   placedObjects: [],
+  devMode: false,
 
   // DOM refs (populated in init)
   dom: { errorToast: null },

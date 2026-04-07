@@ -12,6 +12,8 @@ import { setupPlayerControls } from './controls.js';
 import { initPortals, updatePortals } from './portals.js';
 import { initGrass, updateGrass } from './grass.js';
 import { initSettings, updateSettings } from './settings.js';
+import { initModels } from './models.js';
+import { initDevTools } from './dev-tools.js';
 
 export function init() {
   // Populate DOM refs
@@ -33,7 +35,9 @@ export function init() {
   loadPlayerModel();
   initAvatarPicker();
   initPortals(state.scene, state.player);
+  initModels();
   initSettings();
+  initDevTools();
 
   window.addEventListener('resize', onResize);
   animate();
