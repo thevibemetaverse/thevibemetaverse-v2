@@ -11,7 +11,7 @@ import * as THREE from 'three';
  * @returns {{ group: THREE.Group, particles: THREE.BufferGeometry, basePositions: Float32Array }}
  */
 export function createTorusPortal(scene, { color, label, name, position }) {
-  const GROUP_SCALE = 0.11;
+  const GROUP_SCALE = 0.25;
   const group = new THREE.Group();
   group.name = name;
   group.position.copy(position);

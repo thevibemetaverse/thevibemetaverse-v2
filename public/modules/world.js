@@ -43,7 +43,7 @@ function createSky() {
 
 function createGround() {
   const groundGeo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE);
-  const groundMat = new THREE.MeshLambertMaterial({ color: 0x7EC850 });
+  const groundMat = new THREE.MeshLambertMaterial({ color: 0x2d6b1a });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;

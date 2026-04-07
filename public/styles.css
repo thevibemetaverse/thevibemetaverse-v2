@@ -211,3 +211,50 @@ canvas { display: block; }
 #avatar-picker button:disabled:hover {
   transform: none;
 }
+
+/* Settings panel */
+.settings-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 20;
+  min-width: 180px;
+  padding: 0;
+  border-radius: 12px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid rgba(255,255,255,0.35);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: 13px;
+}
+.settings-panel.hidden { display: none; }
+.settings-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+.settings-panel__header button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.settings-panel__header button:hover { color: #fff; }
+.settings-panel__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+}
+#fps-counter {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}

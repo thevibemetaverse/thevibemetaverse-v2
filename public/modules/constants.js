@@ -4,19 +4,19 @@
  */
 
 // -- Player --
-export const PLAYER_MOVE_SPEED = 14;        // units per second
+export const PLAYER_MOVE_SPEED = 32;        // units per second
 export const PLAYER_WORLD_LIMIT = 120;      // clamp position to ±limit
-export const PLAYER_TARGET_HEIGHT = 2.2;    // avatar scale target (units)
+export const PLAYER_TARGET_HEIGHT = 10.0;   // avatar scale target (units)
 export const ANIMATION_CROSSFADE = 0.25;    // seconds for idle↔run blend
 
 // -- Camera --
 export const CAMERA_FOV = 60;
 export const CAMERA_NEAR = 0.1;
 export const CAMERA_FAR = 1000;
-export const CAMERA_ORBIT_DISTANCE = 14;
-export const CAMERA_ORBIT_HEIGHT = 6;
-export const CAMERA_LOOK_Y_WITH_MODEL = 1.2;
-export const CAMERA_LOOK_Y_WITHOUT_MODEL = 0.8;
+export const CAMERA_ORBIT_DISTANCE = 28;
+export const CAMERA_ORBIT_HEIGHT = 12;
+export const CAMERA_LOOK_Y_WITH_MODEL = 4.0;
+export const CAMERA_LOOK_Y_WITHOUT_MODEL = 2.0;
 export const CAMERA_ORBIT_SENSITIVITY = 0.006; // radians per pixel of mouse movement
 
 // -- World --
@@ -30,11 +30,11 @@ export const TREE_CLEARANCE = 4;            // min distance between trees
 
 // -- Portals --
 export const PORTAL_ROW_Z = -10;
-export const PORTAL_ROW_SPACING = 6;
-export const PORTAL_PROXIMITY_DIST = 6;
-export const PORTAL_ENTER_DIST = 2;
-export const PORTAL_CUSTOM_REF_ENTER_DIST = 2.8;
-export const PORTAL_PIETER_ELEVATION_Y = 1.65;
+export const PORTAL_ROW_SPACING = 12;
+export const PORTAL_PROXIMITY_DIST = 14;
+export const PORTAL_ENTER_DIST = 5;
+export const PORTAL_CUSTOM_REF_ENTER_DIST = 6;
+export const PORTAL_PIETER_ELEVATION_Y = 4.0;
 export const PORTAL_PIETER_X = 18;
 
 // -- Renderer --
