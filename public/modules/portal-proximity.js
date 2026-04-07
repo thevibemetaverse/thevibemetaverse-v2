@@ -9,6 +9,13 @@ import {
 
 const PIETER_PORTAL_URL = 'https://portal.pieter.com';
 
+/** Ground-plane distance — portal groups are elevated in Y, so 3D distance never matches tuning. */
+function distanceXZ(a, b) {
+  const dx = a.x - b.x;
+  const dz = a.z - b.z;
+  return Math.hypot(dx, dz);
+}
+
 let promptEl = null;
 let navigating = false;
 
@@ -89,13 +96,13 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
   let refDist = Infinity;
   if (player && customRefPortal) {
     customRefPortal.group.getWorldPosition(worldPos);
-    refDist = player.position.distanceTo(worldPos);
+    refDist = distanceXZ(player.position, worldPos);
   }
 
   let pieterDist = Infinity;
   if (player && pieterPortal) {
     pieterPortal.group.getWorldPosition(worldPos);
-    pieterDist = player.position.distanceTo(worldPos);
+    pieterDist = distanceXZ(player.position, worldPos);
   }
 
   let nearestRegistry = null;
@@ -104,7 +111,7 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
   for (const portal of registryPortals) {
     if (player) {
       portal.group.getWorldPosition(worldPos);
-      const dist = player.position.distanceTo(worldPos);
+      const dist = distanceXZ(player.position, worldPos);
       if (dist < nearestRegistryDist) {
         nearestRegistryDist = dist;
         nearestRegistry = portal;

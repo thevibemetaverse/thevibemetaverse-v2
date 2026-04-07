@@ -122,7 +122,7 @@ function createTrees() {
     );
     if (tooClose) continue;
     // Extra guard: keep a wedge toward negative Z clear for portal sightlines
-    if (Math.abs(x) < 22 && z < 6 && z > -32) continue;
+    if (Math.abs(x) < 32 && z < 8 && z > -34) continue;
 
     treePositions.push({ x, z });
 
