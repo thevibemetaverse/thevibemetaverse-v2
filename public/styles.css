@@ -3,21 +3,22 @@ body { overflow: hidden; background: #87CEEB; font-family: 'Courier New', monosp
 canvas { display: block; }
 
 #hud {
-  position: fixed; top: 20px; right: 20px;
+  position: fixed; top: 20px; left: 20px;
   z-index: 10; pointer-events: none;
+  display: flex; gap: 12px; align-items: center;
 }
-#github-link {
+#hud a {
   display: flex; align-items: center; justify-content: center;
   color: rgba(255,255,255,0.9);
   opacity: 0.9;
   transition: opacity 0.2s, color 0.2s;
   pointer-events: auto;
 }
-#github-link:hover {
+#hud a:hover {
   opacity: 1;
   color: #fff;
 }
-#github-link svg {
+#hud a svg {
   width: 26px; height: 26px;
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
 }
