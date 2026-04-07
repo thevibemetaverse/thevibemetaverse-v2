@@ -7,6 +7,8 @@ import {
 import {
   PORTAL_ROW_Z,
   PORTAL_ROW_SPACING,
+  PORTAL_ROW_OFFSET_X,
+  PORTAL_PIETER_TORUS_EXTRA_X,
   PORTAL_PIETER_ELEVATION_Y,
   PORTAL_PIETER_X,
 } from './constants.js';
@@ -88,19 +90,26 @@ export async function initPortals(scene, player) {
   const PORTAL_SCALE = 2.5;
   for (let i = 0; i < portals.length; i++) {
     const slotIndex = i < registryData.length ? i : hubSlotIndex;
-    const x = portalRowSlotX(slotIndex, totalSlots, PORTAL_ROW_SPACING);
+    const x =
+      portalRowSlotX(slotIndex, totalSlots, PORTAL_ROW_SPACING) +
+      PORTAL_ROW_OFFSET_X;
     portals[i].group.scale.setScalar(PORTAL_SCALE);
     portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, PORTAL_ROW_Z);
     portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, 0);
   }
 
-  // Green Vibeverse portal
+  // Green Vibeverse portal — place in the slot *after* the hub row so it never stacks on the hub
+  // (previously PORTAL_PIETER_X - PORTAL_ROW_SPACING matched the rightmost hub slot).
+  const pieterX =
+    portalRowSlotX(totalSlots, totalSlots + 1, PORTAL_ROW_SPACING) +
+    PORTAL_ROW_OFFSET_X +
+    PORTAL_PIETER_TORUS_EXTRA_X;
   pieterPortal = createTorusPortal(scene, {
     color: 0x00ff00,
     label: 'VIBEVERSE PORTAL',
     name: 'pieter-portal',
     position: new THREE.Vector3(
-      PORTAL_PIETER_X + -PORTAL_ROW_SPACING,
+      pieterX,
       PORTAL_PIETER_ELEVATION_Y,
       PORTAL_ROW_Z
     ),
@@ -113,7 +122,7 @@ export async function initPortals(scene, player) {
       label: 'CUSTOM PORTAL',
       name: 'custom-ref-portal',
       position: new THREE.Vector3(
-        PORTAL_PIETER_X,
+        PORTAL_PIETER_X + PORTAL_ROW_OFFSET_X,
         PORTAL_PIETER_ELEVATION_Y,
         PORTAL_ROW_Z
       ),

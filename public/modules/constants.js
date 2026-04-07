@@ -29,12 +29,25 @@ export const TREE_MAX_DIST = 56;
 export const TREE_CLEARANCE = 4;            // min distance between trees
 
 // -- Portals --
-export const PORTAL_ROW_Z = -10;
-export const PORTAL_ROW_SPACING = 12;
-export const PORTAL_PROXIMITY_DIST = 14;
-export const PORTAL_ENTER_DIST = 5;
-export const PORTAL_CUSTOM_REF_ENTER_DIST = 6;
-export const PORTAL_PIETER_ELEVATION_Y = 4.0;
+export const PORTAL_ROW_Z = -12;
+/** Horizontal gap between portal slots (wider = clearer of avatar arms in T-pose). */
+export const PORTAL_ROW_SPACING = 18;
+/** Shift the whole row in +X (negative = left on screen) so the right portal clears the Jam widget. */
+export const PORTAL_ROW_OFFSET_X = -5;
+/** Extra +X on the Pieter torus only (pushes it further right vs the shader row). */
+export const PORTAL_PIETER_TORUS_EXTRA_X = 12;
+/**
+ * Horizontal (XZ) distance: show “Entering…” when this close on the ground plane.
+ * (Portal groups sit above the player in Y — 3D distance would ignore these knobs.)
+ */
+export const PORTAL_PROXIMITY_DIST = 32;
+/** Horizontal (XZ) distance: registry portals navigate when closer than this. */
+export const PORTAL_ENTER_DIST = 1.5;
+/** Horizontal (XZ) distance: Pieter torus + custom ref portal navigate when closer than this. */
+export const PORTAL_CUSTOM_REF_ENTER_DIST = 1.5;
+/** World Y for portal groups; slightly raised so rings sit above shoulder height after mesh offset × scale. */
+export const PORTAL_PIETER_ELEVATION_Y = 4.9;
+/** Used for the custom return portal (?portal) — right flank X (see PORTAL_ROW_OFFSET_X). */
 export const PORTAL_PIETER_X = 18;
 
 // -- Renderer --
