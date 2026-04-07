@@ -40,7 +40,7 @@ export const PORTAL_PIETER_TORUS_EXTRA_X = 12;
  * Horizontal (XZ) distance: show “Entering…” when this close on the ground plane.
  * (Portal groups sit above the player in Y — 3D distance would ignore these knobs.)
  */
-export const PORTAL_PROXIMITY_DIST = 32;
+export const PORTAL_PROXIMITY_DIST = 5;
 /** Horizontal (XZ) distance: registry portals navigate when closer than this. */
 export const PORTAL_ENTER_DIST = 1.5;
 /** Horizontal (XZ) distance: Pieter torus + custom ref portal navigate when closer than this. */
