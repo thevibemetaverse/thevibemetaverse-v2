@@ -4,6 +4,7 @@ import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { PORTALS_PRODUCTION_ORIGIN } from './vendor/portals/sdk/network.js';
+import { SELF_PORTAL_SLUG } from './public/self-portal.mjs';
 
 /** Ensure the static portal hub (network index) is listed so the metaverse is not the only destination. */
 function mergePortalHub(entries, portalsOrigin) {
@@ -52,11 +53,16 @@ app.get('/portals.json', async (req, res) => {
     }
     const data = await r.json();
     const list = Array.isArray(data) ? data : [];
-    // Remove our own entry so we never show a portal back to ourselves
+    // Remove our own entry (same host in prod, and by slug for localhost / alt domains)
     const selfOrigin = new URL(req.protocol + '://' + req.get('host')).origin;
     const filtered = list.filter((p) => {
       if (!p?.url) return false;
-      try { return new URL(p.url).origin !== selfOrigin; } catch { return true; }
+      if (p.slug === SELF_PORTAL_SLUG) return false;
+      try {
+        return new URL(p.url).origin !== selfOrigin;
+      } catch {
+        return true;
+      }
     });
     res.json(mergePortalHub(filtered, base));
   } catch (err) {

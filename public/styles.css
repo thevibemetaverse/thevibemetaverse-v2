@@ -1,6 +1,6 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { overflow: hidden; background: #87CEEB; font-family: 'Courier New', monospace; }
-canvas { display: block; }
+canvas { display: block; touch-action: none; }
 
 #hud {
   position: fixed; top: 20px; left: 20px;
@@ -210,6 +210,50 @@ canvas { display: block; }
 }
 #avatar-picker button:disabled:hover {
   transform: none;
+}
+
+/* Mobile controls */
+#mobile-controls {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+#mobile-controls.visible {
+  display: block;
+}
+#joystick-zone {
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  pointer-events: auto;
+  touch-action: none;
+}
+#joystick-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 50px;
+  height: 50px;
+  margin: -25px 0 0 -25px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+}
+#orbit-zone {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  pointer-events: auto;
+  touch-action: none;
 }
 
 /* Settings panel */

@@ -14,6 +14,7 @@ import {
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity } from './portal-proximity.js';
+import { SELF_PORTAL_SLUG } from '../self-portal.mjs';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
@@ -59,7 +60,12 @@ export async function initPortals(scene, player) {
   }
 
   const wantCustomPortal = hasPortalQueryParam();
-  data = (data || []).filter((p) => p.url && !isSameDocumentDestination(p.url));
+  data = (data || []).filter(
+    (p) =>
+      p.url &&
+      p.slug !== SELF_PORTAL_SLUG &&
+      !isSameDocumentDestination(p.url)
+  );
 
   const hubExitEntry = data.find((p) => p.slug === 'portal-network');
   const registryData = data.filter((p) => p.slug !== 'portal-network');

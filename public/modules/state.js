@@ -31,6 +31,8 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
  * @property {number} orbitDistance - Camera distance from player
  * @property {number} orbitHeight - Camera height above player
  * @property {boolean} isPointerDown - Whether the mouse/pointer is held down
+ * @property {{x: number, z: number}} moveInput - Normalized movement vector from joystick (0,0 when idle)
+ * @property {boolean} isTouchDevice - Whether touch input is available
  *
  * @property {GameState} gameState
  * @property {Set<string>} occupiedCells - Grid cell keys ("x,z") claimed by placed objects
@@ -62,6 +64,8 @@ export const state = {
   orbitDistance: CAMERA_ORBIT_DISTANCE,
   orbitHeight: CAMERA_ORBIT_HEIGHT,
   isPointerDown: false,
+  moveInput: { x: 0, z: 0 },
+  isTouchDevice: false,
 
   // Game
   gameState: 'EXPLORING',
