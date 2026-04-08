@@ -15,6 +15,13 @@ import { state } from './state.js';
 /** @type {ModelPlacement[]} */
 export const MODEL_PLACEMENTS = [
   {
+    name: 'eiffel-tower',
+    path: 'assets/models/eiffel_tower.glb',
+    position: [63.5, 0, -100],
+    rotation: [0, -25, 0],
+    scale: 10,
+  },
+  {
     name: 'bbq-sauce',
     path: 'assets/models/sweet_baby_rays_bbq_sauce.glb',
     position: [10, 5, -35],
