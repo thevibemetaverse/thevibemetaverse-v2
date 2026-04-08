@@ -16,6 +16,6 @@ parameters:
   TaskMemory: '512'
   AcmCertificateArn: arn:aws:acm:us-east-2:034475640037:certificate/19e5c5f9-bf8b-4a00-9ee6-e91746b68050
   ElasticIpAllocationId: eipalloc-0e64e1670db16daf9
-  DesiredCount: 0
+  DesiredCount: 1
 tags:
   Project: the-vibe-metaverse-v2
