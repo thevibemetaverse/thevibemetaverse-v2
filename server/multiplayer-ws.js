@@ -6,6 +6,18 @@ const STALE_MS = 45_000;
 const PRUNE_INTERVAL_MS = 10_000;
 const DEFAULT_PLAYER_NAME = 'metaverse-explorer';
 const MAX_NAME_LENGTH = 20;
+const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
+
+function notifyDiscord(playerName, playerCount) {
+  if (!DISCORD_WEBHOOK_URL) return;
+  fetch(DISCORD_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      content: `**${playerName}** joined the metaverse! (${playerCount} player${playerCount === 1 ? '' : 's'} online)`,
+    }),
+  }).catch(() => {});
+}
 
 function clampWorld(n) {
   if (!Number.isFinite(n)) return 0;
@@ -86,6 +98,7 @@ export function attachMultiplayerWebSocket(server) {
           })
         );
         broadcast({ type: 'player_joined', id, avatarUrl, name }, ws);
+        notifyDiscord(name, sockets.size);
         return;
       }
 
