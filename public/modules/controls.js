@@ -19,7 +19,6 @@ export function setupPlayerControls() {
     }
   });
   window.addEventListener('keyup', (e) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     state.keys[e.code] = false;
   });
 

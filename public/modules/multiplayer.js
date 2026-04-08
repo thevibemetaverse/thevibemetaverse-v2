@@ -46,6 +46,10 @@ function disposeRemoteById(id) {
     r.group.remove(r.modelRoot);
     disposePlayerVisualResources(r.modelRoot);
   }
+  if (r.nametagSprite) {
+    r.nametagSprite.material.map?.dispose();
+    r.nametagSprite.material.dispose();
+  }
   if (state.scene) state.scene.remove(r.group);
   state.remotePlayers.delete(id);
 }
