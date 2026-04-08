@@ -20,7 +20,7 @@ A web-based game entry for The Vibe Metaverse v2 competition. This is a browser 
 - Avoid external asset dependencies that add load time
 - Target instant load: the player should be in the game within seconds of opening the page
 - If multiplayer, use WebSockets or WebRTC for real-time communication
-- Deploy to a publicly accessible URL (own domain/subdomain preferred)
+- Keep FPS 60 or higher
 
 ## Code Patterns
 
