@@ -1,18 +1,19 @@
 import * as THREE from 'three';
 import { state } from './state.js';
+import { SHADOW_MAP_SIZE, SUN_INTENSITY, SUN_POSITION, AMBIENT_INTENSITY, HEMI_INTENSITY, SHADOW_RADIUS, SHADOW_NORMAL_BIAS } from './constants.js';
 
 export function setupLighting() {
-  const ambient = new THREE.AmbientLight(0xB0E0FF, 0.8);
+  const ambient = new THREE.AmbientLight(0xC8DDEF, AMBIENT_INTENSITY);
   state.scene.add(ambient);
 
-  const hemi = new THREE.HemisphereLight(0x87CEEB, 0x7EC850, 0.5);
+  const hemi = new THREE.HemisphereLight(0x87CEEB, 0x8CB86A, HEMI_INTENSITY);
   state.scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xFFFDD0, 1.4);
-  sun.position.set(30, 50, 20);
+  const sun = new THREE.DirectionalLight(0xFFFDD0, SUN_INTENSITY);
+  sun.position.set(...SUN_POSITION);
   sun.castShadow = true;
-  sun.shadow.mapSize.width = 2048;
-  sun.shadow.mapSize.height = 2048;
+  sun.shadow.mapSize.width = SHADOW_MAP_SIZE;
+  sun.shadow.mapSize.height = SHADOW_MAP_SIZE;
   sun.shadow.camera.left = -60;
   sun.shadow.camera.right = 60;
   sun.shadow.camera.top = 60;
@@ -20,6 +21,8 @@ export function setupLighting() {
   sun.shadow.camera.near = 0.5;
   sun.shadow.camera.far = 150;
   sun.shadow.bias = -0.001;
+  sun.shadow.radius = SHADOW_RADIUS;
+  sun.shadow.normalBias = SHADOW_NORMAL_BIAS;
   state.scene.add(sun);
 
   // Procedural environment map for reflections on metallic/glossy objects
@@ -30,7 +33,7 @@ export function setupLighting() {
     side: THREE.BackSide,
     uniforms: {
       topColor: { value: new THREE.Color(0x88CCEE) },
-      bottomColor: { value: new THREE.Color(0xAADD88) },
+      bottomColor: { value: new THREE.Color(0x99BB88) },
     },
     vertexShader: `varying vec3 vWorldPos;
       void main(){vWorldPos=(modelMatrix*vec4(position,1.0)).xyz;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
@@ -39,7 +42,7 @@ export function setupLighting() {
   });
   envScene.add(new THREE.Mesh(envGeo, envMat));
   const sunLight = new THREE.DirectionalLight(0xFFFFDD, 2);
-  sunLight.position.set(30, 50, 20);
+  sunLight.position.set(...SUN_POSITION);
   envScene.add(sunLight);
   envScene.add(new THREE.AmbientLight(0xCCDDEE, 1));
   const envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
