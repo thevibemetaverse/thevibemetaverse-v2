@@ -1,0 +1,275 @@
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { state } from './state.js';
+import {
+  MULTIPLAYER_SEND_INTERVAL_MS,
+  MULTIPLAYER_REMOTE_LERP,
+  PLAYER_SPAWN_Z,
+} from './constants.js';
+import {
+  BUNDLED_METAVERSE_EXPLORER,
+  buildPlayerVisualFromGltf,
+  disposePlayerVisualResources,
+  setMovingAnimationForContext,
+} from './character.js';
+
+/** @type {WebSocket | null} */
+let ws = null;
+let lastSendAt = 0;
+/** @type {ReturnType<typeof setInterval> | null} */
+let pingInterval = null;
+/** @type {ReturnType<typeof setTimeout> | null} */
+let reconnectTimer = null;
+
+function wsUrl() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${proto}//${location.host}/ws`;
+}
+
+function getLocalAvatarUrlForNetwork() {
+  const u = new URLSearchParams(window.location.search).get('avatar_url');
+  return u || '';
+}
+
+function resolveAvatarModelPath(avatarUrl) {
+  if (!avatarUrl) return BUNDLED_METAVERSE_EXPLORER;
+  return avatarUrl;
+}
+
+function disposeRemoteById(id) {
+  const r = state.remotePlayers.get(id);
+  if (!r) return;
+  if (r.animationMixer) r.animationMixer.stopAllAction();
+  if (r.modelRoot) {
+    r.group.remove(r.modelRoot);
+    disposePlayerVisualResources(r.modelRoot);
+  }
+  if (state.scene) state.scene.remove(r.group);
+  state.remotePlayers.delete(id);
+}
+
+function clearAllRemotes() {
+  for (const id of [...state.remotePlayers.keys()]) {
+    disposeRemoteById(id);
+  }
+}
+
+function ensureRemotePlayer(id, avatarUrl) {
+  if (id === state.localPlayerId) return;
+  const existing = state.remotePlayers.get(id);
+  if (existing) {
+    if (existing.avatarUrl === avatarUrl) return;
+    disposeRemoteById(id);
+  }
+
+  const group = new THREE.Group();
+  group.position.set(0, 0, PLAYER_SPAWN_Z);
+  state.scene.add(group);
+
+  const record = {
+    id,
+    avatarUrl,
+    group,
+    modelRoot: null,
+    animationMixer: null,
+    idleAnimAction: null,
+    runAnimAction: null,
+    lastMovingState: /** @type {boolean | null} */ (null),
+    targetPosition: new THREE.Vector3(0, 0, PLAYER_SPAWN_Z),
+    targetRotY: 0,
+    moving: false,
+  };
+  state.remotePlayers.set(id, record);
+
+  const path = resolveAvatarModelPath(avatarUrl);
+  const loader = new GLTFLoader();
+  loader.load(
+    path,
+    (gltf) => {
+      const current = state.remotePlayers.get(id);
+      if (!current || current.avatarUrl !== avatarUrl) return;
+      if (current.modelRoot) return;
+      const v = buildPlayerVisualFromGltf(current.group, gltf);
+      current.modelRoot = v.modelRoot;
+      current.animationMixer = v.animationMixer;
+      current.idleAnimAction = v.idleAnimAction;
+      current.runAnimAction = v.runAnimAction;
+      current.lastMovingState = v.lastMovingState;
+    },
+    undefined,
+    (err) => console.error('Remote avatar load failed:', id, err)
+  );
+}
+
+function handleMessage(raw) {
+  let msg;
+  try {
+    msg = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!msg?.type) return;
+
+  switch (msg.type) {
+    case 'welcome': {
+      clearAllRemotes();
+      state.localPlayerId = msg.id;
+      const list = Array.isArray(msg.players) ? msg.players : [];
+      for (const p of list) {
+        if (p?.id && typeof p.avatarUrl === 'string') {
+          ensureRemotePlayer(p.id, p.avatarUrl);
+        }
+      }
+      break;
+    }
+    case 'player_joined': {
+      if (msg.id && msg.id !== state.localPlayerId) {
+        ensureRemotePlayer(
+          msg.id,
+          typeof msg.avatarUrl === 'string' ? msg.avatarUrl : ''
+        );
+      }
+      break;
+    }
+    case 'player_left': {
+      if (msg.id) disposeRemoteById(msg.id);
+      break;
+    }
+    case 'player_state': {
+      if (!msg.id || msg.id === state.localPlayerId) break;
+      let r = state.remotePlayers.get(msg.id);
+      if (!r) {
+        ensureRemotePlayer(msg.id, '');
+        r = state.remotePlayers.get(msg.id);
+      }
+      if (!r) break;
+      r.targetPosition.set(
+        Number(msg.x) || 0,
+        Number(msg.y) || 0,
+        Number(msg.z) || 0
+      );
+      r.targetRotY = Number(msg.ry) || 0;
+      r.moving = Boolean(msg.moving);
+      break;
+    }
+    case 'player_avatar': {
+      if (!msg.id || msg.id === state.localPlayerId) break;
+      disposeRemoteById(msg.id);
+      ensureRemotePlayer(
+        msg.id,
+        typeof msg.avatarUrl === 'string' ? msg.avatarUrl : ''
+      );
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+function sendState() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  if (!state.localPlayerId || !state.player) return;
+  const now = performance.now();
+  if (now - lastSendAt < MULTIPLAYER_SEND_INTERVAL_MS) return;
+  lastSendAt = now;
+  const p = state.player.position;
+  ws.send(
+    JSON.stringify({
+      type: 'state',
+      x: p.x,
+      y: p.y,
+      z: p.z,
+      ry: state.player.rotation.y,
+      moving: state.localPlayerMoving,
+    })
+  );
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, 3000);
+}
+
+function connect() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  try {
+    ws = new WebSocket(wsUrl());
+  } catch (e) {
+    console.warn('WebSocket failed', e);
+    scheduleReconnect();
+    return;
+  }
+
+  ws.onopen = () => {
+    ws.send(
+      JSON.stringify({
+        type: 'hello',
+        avatarUrl: getLocalAvatarUrlForNetwork(),
+      })
+    );
+    if (pingInterval) clearInterval(pingInterval);
+    pingInterval = setInterval(() => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 25_000);
+  };
+
+  ws.onmessage = (ev) => handleMessage(/** @type {string} */ (ev.data));
+
+  ws.onclose = () => {
+    if (pingInterval) {
+      clearInterval(pingInterval);
+      pingInterval = null;
+    }
+    ws = null;
+    state.localPlayerId = null;
+    clearAllRemotes();
+    scheduleReconnect();
+  };
+
+  ws.onerror = () => {};
+}
+
+export function initMultiplayer() {
+  connect();
+}
+
+export function updateMultiplayer(delta) {
+  sendState();
+
+  const k = 1 - Math.exp(-MULTIPLAYER_REMOTE_LERP * delta);
+  for (const r of state.remotePlayers.values()) {
+    r.group.position.lerp(r.targetPosition, k);
+    r.group.rotation.y = THREE.MathUtils.lerp(
+      r.group.rotation.y,
+      r.targetRotY,
+      k
+    );
+
+    const ctx = {
+      animationMixer: r.animationMixer,
+      idleAnimAction: r.idleAnimAction,
+      runAnimAction: r.runAnimAction,
+      playerModel: r.modelRoot,
+      lastMovingState: r.lastMovingState,
+    };
+    setMovingAnimationForContext(ctx, r.moving);
+    r.lastMovingState = ctx.lastMovingState;
+    if (r.animationMixer) r.animationMixer.update(delta);
+  }
+}
+
+export function notifyLocalAvatarChanged() {
+  const url = getLocalAvatarUrlForNetwork();
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'avatar', avatarUrl: url }));
+  }
+}

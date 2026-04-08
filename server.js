@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import express from 'express';
+import { createServer } from 'http';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { PORTALS_PRODUCTION_ORIGIN } from './vendor/portals/sdk/network.js';
+import { attachMultiplayerWebSocket } from './server/multiplayer-ws.js';
 
 /** Ensure the static portal hub (network index) is listed so the metaverse is not the only destination. */
 function mergePortalHub(entries, portalsOrigin) {
@@ -76,6 +78,9 @@ if (existsSync(siblingPortals)) {
 }
 app.use('/vendor/portals', express.static(join(__dirname, 'vendor', 'portals')));
 
-app.listen(PORT, () => {
+const server = createServer(app);
+attachMultiplayerWebSocket(server);
+
+server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

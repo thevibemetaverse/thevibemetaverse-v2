@@ -12,6 +12,21 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
  */
 
 /**
+ * @typedef {Object} RemotePlayerRecord
+ * @property {string} id
+ * @property {string} avatarUrl
+ * @property {import('three').Group} group
+ * @property {import('three').Object3D | null} modelRoot
+ * @property {import('three').AnimationMixer | null} animationMixer
+ * @property {import('three').AnimationAction | null} idleAnimAction
+ * @property {import('three').AnimationAction | null} runAnimAction
+ * @property {boolean | null} lastMovingState
+ * @property {import('three').Vector3} targetPosition
+ * @property {number} targetRotY
+ * @property {boolean} moving
+ */
+
+/**
  * @typedef {Object} GameStateObject
  *
  * @property {THREE.Scene | null} scene
@@ -38,6 +53,11 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
  * @property {Set<string>} occupiedCells - Grid cell keys ("x,z") claimed by placed objects
  * @property {THREE.Object3D[]} placedObjects - AI-generated objects added to the scene
  * @property {boolean} devMode - Whether dev tools are active
+ *
+ * @property {string | null} localPlayerId - Assigned by multiplayer welcome (UUID).
+ * @property {boolean} localPlayerMoving - Updated each frame from movement input (for network).
+ *
+ * @property {Map<string, RemotePlayerRecord>} remotePlayers - Other clients (id → record).
  *
  * @property {DomRefs} dom
  */
@@ -72,6 +92,10 @@ export const state = {
   occupiedCells: new Set(),
   placedObjects: [],
   devMode: false,
+
+  localPlayerId: null,
+  localPlayerMoving: false,
+  remotePlayers: new Map(),
 
   // DOM refs (populated in init)
   dom: { errorToast: null },

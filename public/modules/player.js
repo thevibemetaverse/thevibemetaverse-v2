@@ -47,6 +47,7 @@ export function updatePlayer(delta) {
   else if (moveStickyFrames > 0) moveStickyFrames--;
   const isMovingForAnimation = moveStickyFrames > 0;
 
+  state.localPlayerMoving = hasMoveInput;
   setMovingAnimation(isMovingForAnimation);
 
   if (hasMoveInput) {

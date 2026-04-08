@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 COPY server.js ./
+COPY server ./server
 COPY public ./public
 COPY assets ./assets
 COPY vendor ./vendor
