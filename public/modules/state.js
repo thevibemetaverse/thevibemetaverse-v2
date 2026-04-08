@@ -7,6 +7,10 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from 
  */
 
 /**
+ * @typedef {'first' | 'third'} VrPovMode
+ */
+
+/**
  * @typedef {Object} DomRefs
  * @property {HTMLElement | null} errorToast
  */
@@ -51,6 +55,16 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from 
  * @property {{x: number, z: number}} moveInput - Normalized movement vector from joystick (0,0 when idle)
  * @property {boolean} isTouchDevice - Whether touch input is available
  *
+ * @property {boolean} webXrSupported - immersive-vr supported (hides touch overlays when true)
+ * @property {VrPovMode} vrPov - VR camera mode (third = default)
+ * @property {number} headYaw - headset yaw on XZ plane (rad), updated while in XR
+ * @property {number} vrComfortYaw - FP VR extra yaw from right stick (rad)
+ * @property {{ x: number, z: number }} controllerMove - left stick (gamepad / XR), deadzoned
+ * @property {{ x: number, z: number }} controllerLook - right stick look / orbit input
+ * @property {import('three').Group | null} xrRig - parent of camera while in XR
+ * @property {import('three').Sprite | null} exitVrSprite - view-space exit control
+ * @property {boolean} prevVrYButton - edge-detect Quest Y (left hand)
+ *
  * @property {GameState} gameState
  * @property {Set<string>} occupiedCells - Grid cell keys ("x,z") claimed by placed objects
  * @property {THREE.Object3D[]} placedObjects - AI-generated objects added to the scene
@@ -89,6 +103,16 @@ export const state = {
   isPointerDown: false,
   moveInput: { x: 0, z: 0 },
   isTouchDevice: false,
+
+  webXrSupported: false,
+  vrPov: 'third',
+  headYaw: 0,
+  vrComfortYaw: 0,
+  controllerMove: { x: 0, z: 0 },
+  controllerLook: { x: 0, z: 0 },
+  xrRig: null,
+  exitVrSprite: null,
+  prevVrYButton: false,
 
   // Game
   gameState: 'EXPLORING',
