@@ -23,6 +23,31 @@ canvas { display: block; touch-action: none; }
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
 }
 
+#player-name-input {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 15;
+  width: 180px;
+  padding: 8px 12px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+#player-name-input:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.6);
+}
+#player-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
 #error-toast {
   position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
   display: none; padding: 10px 20px;

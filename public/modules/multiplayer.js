@@ -12,6 +12,7 @@ import {
   disposePlayerVisualResources,
   setMovingAnimationForContext,
 } from './character.js';
+import { createNametagSprite, updateNametagText } from './nametag.js';
 
 /** @type {WebSocket | null} */
 let ws = null;
@@ -54,7 +55,7 @@ function clearAllRemotes() {
   }
 }
 
-function ensureRemotePlayer(id, avatarUrl) {
+function ensureRemotePlayer(id, avatarUrl, name = 'metaverse-explorer') {
   if (id === state.localPlayerId) return;
   const existing = state.remotePlayers.get(id);
   if (existing) {
@@ -66,9 +67,13 @@ function ensureRemotePlayer(id, avatarUrl) {
   group.position.set(0, 0, PLAYER_SPAWN_Z);
   state.scene.add(group);
 
+  const nametagSprite = createNametagSprite(name);
+  group.add(nametagSprite);
+
   const record = {
     id,
     avatarUrl,
+    name,
     group,
     modelRoot: null,
     animationMixer: null,
@@ -78,6 +83,7 @@ function ensureRemotePlayer(id, avatarUrl) {
     targetPosition: new THREE.Vector3(0, 0, PLAYER_SPAWN_Z),
     targetRotY: 0,
     moving: false,
+    nametagSprite,
   };
   state.remotePlayers.set(id, record);
 
@@ -117,7 +123,7 @@ function handleMessage(raw) {
       const list = Array.isArray(msg.players) ? msg.players : [];
       for (const p of list) {
         if (p?.id && typeof p.avatarUrl === 'string') {
-          ensureRemotePlayer(p.id, p.avatarUrl);
+          ensureRemotePlayer(p.id, p.avatarUrl, p.name || 'metaverse-explorer');
         }
       }
       break;
@@ -126,7 +132,8 @@ function handleMessage(raw) {
       if (msg.id && msg.id !== state.localPlayerId) {
         ensureRemotePlayer(
           msg.id,
-          typeof msg.avatarUrl === 'string' ? msg.avatarUrl : ''
+          typeof msg.avatarUrl === 'string' ? msg.avatarUrl : '',
+          typeof msg.name === 'string' ? msg.name : 'metaverse-explorer'
         );
       }
       break;
@@ -150,15 +157,30 @@ function handleMessage(raw) {
       );
       r.targetRotY = Number(msg.ry) || 0;
       r.moving = Boolean(msg.moving);
+      if (typeof msg.name === 'string' && msg.name !== r.name) {
+        r.name = msg.name;
+        if (r.nametagSprite) updateNametagText(r.nametagSprite, msg.name);
+      }
       break;
     }
     case 'player_avatar': {
       if (!msg.id || msg.id === state.localPlayerId) break;
+      const existingName = state.remotePlayers.get(msg.id)?.name || 'metaverse-explorer';
       disposeRemoteById(msg.id);
       ensureRemotePlayer(
         msg.id,
-        typeof msg.avatarUrl === 'string' ? msg.avatarUrl : ''
+        typeof msg.avatarUrl === 'string' ? msg.avatarUrl : '',
+        existingName
       );
+      break;
+    }
+    case 'player_name': {
+      if (!msg.id || msg.id === state.localPlayerId) break;
+      const r = state.remotePlayers.get(msg.id);
+      if (r) {
+        r.name = msg.name || 'metaverse-explorer';
+        if (r.nametagSprite) updateNametagText(r.nametagSprite, r.name);
+      }
       break;
     }
     default:
@@ -181,6 +203,7 @@ function sendState() {
       z: p.z,
       ry: state.player.rotation.y,
       moving: state.localPlayerMoving,
+      name: state.localPlayerName,
     })
   );
 }
@@ -212,6 +235,7 @@ function connect() {
       JSON.stringify({
         type: 'hello',
         avatarUrl: getLocalAvatarUrlForNetwork(),
+        name: state.localPlayerName,
       })
     );
     if (pingInterval) clearInterval(pingInterval);
@@ -271,5 +295,11 @@ export function notifyLocalAvatarChanged() {
   const url = getLocalAvatarUrlForNetwork();
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'avatar', avatarUrl: url }));
+  }
+}
+
+export function notifyLocalNameChanged() {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'name', name: state.localPlayerName }));
   }
 }

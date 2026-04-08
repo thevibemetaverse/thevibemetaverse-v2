@@ -17,7 +17,7 @@ function clampWorld(n) {
 export function attachMultiplayerWebSocket(server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-  /** @type {Map<import('ws').WebSocket, { id: string, avatarUrl: string, lastSeen: number }>} */
+  /** @type {Map<import('ws').WebSocket, { id: string, avatarUrl: string, name: string, lastSeen: number }>} */
   const sockets = new Map();
 
   function broadcast(obj, except) {
@@ -68,12 +68,13 @@ export function attachMultiplayerWebSocket(server) {
         if (meta) return;
         const id = randomUUID();
         const avatarUrl = typeof msg.avatarUrl === 'string' ? msg.avatarUrl : '';
-        sockets.set(ws, { id, avatarUrl, lastSeen: Date.now() });
+        const name = typeof msg.name === 'string' ? msg.name : 'metaverse-explorer';
+        sockets.set(ws, { id, avatarUrl, name, lastSeen: Date.now() });
 
         const others = [];
         for (const [otherWs, m] of sockets) {
           if (otherWs === ws) continue;
-          others.push({ id: m.id, avatarUrl: m.avatarUrl });
+          others.push({ id: m.id, avatarUrl: m.avatarUrl, name: m.name });
         }
         ws.send(
           JSON.stringify({
@@ -82,7 +83,7 @@ export function attachMultiplayerWebSocket(server) {
             players: others,
           })
         );
-        broadcast({ type: 'player_joined', id, avatarUrl }, ws);
+        broadcast({ type: 'player_joined', id, avatarUrl, name }, ws);
         return;
       }
 
@@ -100,12 +101,21 @@ export function attachMultiplayerWebSocket(server) {
         return;
       }
 
+      if (msg.type === 'name') {
+        const next = typeof msg.name === 'string' ? msg.name : 'metaverse-explorer';
+        meta.name = next;
+        broadcast({ type: 'player_name', id: meta.id, name: next }, ws);
+        return;
+      }
+
       if (msg.type === 'state') {
         const x = clampWorld(Number(msg.x));
         const y = Number.isFinite(Number(msg.y)) ? Number(msg.y) : 0;
         const z = clampWorld(Number(msg.z));
         const ry = Number.isFinite(Number(msg.ry)) ? Number(msg.ry) : 0;
         const moving = Boolean(msg.moving);
+        const name = typeof msg.name === 'string' ? msg.name : meta.name;
+        if (name !== meta.name) meta.name = name;
         broadcast(
           {
             type: 'player_state',
@@ -115,6 +125,7 @@ export function attachMultiplayerWebSocket(server) {
             z,
             ry,
             moving,
+            name,
           },
           ws
         );
