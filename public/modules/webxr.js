@@ -9,6 +9,77 @@ const _quat = new THREE.Quaternion();
 
 let xrControllersWired = false;
 
+/**
+ * @param {'pending' | 'ready' | 'needs-https' | 'no-api' | 'unsupported' | 'error' | 'session'} mode
+ * @param {HTMLButtonElement | null} [btn]
+ * @param {string} [errorDetail]
+ */
+function setEnterVrButton(mode, btn, errorDetail) {
+  const el = btn ?? document.getElementById('enter-vr');
+  if (!el) return;
+  el.classList.remove('enter-vr--pending', 'enter-vr--blocked');
+  el.onclick = null;
+  el.title = '';
+
+  if (mode === 'session') {
+    el.hidden = true;
+    el.disabled = true;
+    return;
+  }
+
+  el.hidden = false;
+
+  if (mode === 'pending') {
+    el.disabled = true;
+    el.textContent = 'Checking VR…';
+    el.classList.add('enter-vr--pending');
+    return;
+  }
+
+  if (mode === 'ready') {
+    el.disabled = false;
+    el.textContent = 'Enter VR';
+    el.setAttribute('aria-label', 'Enter VR');
+    el.onclick = () => {
+      void requestVrSession();
+    };
+    return;
+  }
+
+  el.disabled = true;
+
+  if (mode === 'needs-https') {
+    el.textContent = 'VR needs HTTPS';
+    el.classList.add('enter-vr--blocked');
+    el.setAttribute('aria-label', 'VR requires a secure connection');
+    el.title =
+      'WebXR only works on HTTPS or localhost. Use https:// for this site or open from localhost.';
+    return;
+  }
+
+  if (mode === 'no-api') {
+    el.textContent = 'No WebXR';
+    el.setAttribute('aria-label', 'WebXR not available');
+    el.title = 'This browser does not expose the WebXR API.';
+    return;
+  }
+
+  if (mode === 'unsupported') {
+    el.textContent = 'VR not supported';
+    el.setAttribute('aria-label', 'Immersive VR not supported');
+    el.title = 'This device or browser reports that immersive-vr sessions are not supported.';
+    return;
+  }
+
+  if (mode === 'error') {
+    el.textContent = 'VR check failed';
+    el.classList.add('enter-vr--blocked');
+    el.setAttribute('aria-label', 'VR availability check failed');
+    el.title = errorDetail || 'isSessionSupported rejected or threw.';
+    return;
+  }
+}
+
 function createExitVrSprite() {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -127,8 +198,7 @@ function onVrSessionStart() {
   state.scene.add(c1);
 
   document.getElementById('mobile-controls')?.classList.remove('visible');
-  const enterBtn = document.getElementById('enter-vr');
-  if (enterBtn) enterBtn.hidden = true;
+  setEnterVrButton('session', document.getElementById('enter-vr'));
 }
 
 function onVrSessionEnd() {
@@ -156,32 +226,72 @@ function onVrSessionEnd() {
   }
 
   syncMobileControlsForWebXr();
-  const enterBtn = document.getElementById('enter-vr');
-  if (enterBtn && state.webXrSupported) enterBtn.hidden = false;
+  if (state.webXrSupported) {
+    setEnterVrButton('ready', document.getElementById('enter-vr'));
+  }
+}
+
+/**
+ * @param {import('three').WebGLRenderer} r
+ */
+async function probeWebXrSupport(r) {
+  const btn = document.getElementById('enter-vr');
+  setEnterVrButton('pending', btn);
+
+  if (!window.isSecureContext) {
+    state.webXrSupported = false;
+    console.warn(
+      '[WebXR] Insecure context — use https:// or localhost. isSecureContext=',
+      window.isSecureContext
+    );
+    setEnterVrButton('needs-https', btn);
+    syncMobileControlsForWebXr();
+    return;
+  }
+
+  if (!('xr' in navigator) || !navigator.xr) {
+    state.webXrSupported = false;
+    console.warn('[WebXR] navigator.xr is not available.');
+    setEnterVrButton('no-api', btn);
+    syncMobileControlsForWebXr();
+    return;
+  }
+
+  try {
+    const gl = r.getContext();
+    if (gl && typeof gl.makeXRCompatible === 'function') {
+      await gl.makeXRCompatible();
+    }
+  } catch (e) {
+    console.warn('[WebXR] makeXRCompatible:', e);
+  }
+
+  try {
+    const supported = await navigator.xr.isSessionSupported('immersive-vr');
+    state.webXrSupported = supported;
+    if (supported) {
+      setEnterVrButton('ready', btn);
+      console.info('[WebXR] immersive-vr is supported.');
+    } else {
+      setEnterVrButton('unsupported', btn);
+      console.warn('[WebXR] immersive-vr is not supported on this device/browser.');
+    }
+  } catch (err) {
+    state.webXrSupported = false;
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn('[WebXR] isSessionSupported failed:', err);
+    setEnterVrButton('error', btn, msg);
+  }
+
+  syncMobileControlsForWebXr();
 }
 
 export function initWebXR() {
   const r = state.renderer;
-  if (!r || !('xr' in navigator)) return;
+  if (!r) return;
 
   r.xr.addEventListener('sessionstart', onVrSessionStart);
   r.xr.addEventListener('sessionend', onVrSessionEnd);
 
-  navigator.xr
-    .isSessionSupported('immersive-vr')
-    .then((supported) => {
-      state.webXrSupported = supported;
-      const btn = document.getElementById('enter-vr');
-      if (btn) {
-        btn.hidden = !supported;
-        btn.addEventListener('click', () => {
-          void requestVrSession();
-        });
-      }
-      syncMobileControlsForWebXr();
-    })
-    .catch(() => {
-      state.webXrSupported = false;
-      syncMobileControlsForWebXr();
-    });
+  void probeWebXrSupport(r);
 }

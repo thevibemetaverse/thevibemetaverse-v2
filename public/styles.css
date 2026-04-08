@@ -37,11 +37,26 @@ canvas { display: block; touch-action: none; }
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+  max-width: min(200px, 42vw);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-#enter-vr:hover {
+#enter-vr:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.6);
   border-color: rgba(127, 219, 255, 0.85);
   color: #fff;
+}
+#enter-vr:disabled {
+  cursor: default;
+  opacity: 0.75;
+}
+#enter-vr.enter-vr--pending {
+  opacity: 0.85;
+}
+#enter-vr.enter-vr--blocked {
+  border-color: rgba(255, 180, 100, 0.5);
+  color: rgba(255, 220, 200, 0.95);
 }
 
 #player-name-input {
