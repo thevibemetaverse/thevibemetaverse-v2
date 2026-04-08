@@ -1,38 +1,40 @@
 // @ts-check
 import * as THREE from 'three';
 import { state } from './state.js';
+import { XR_RIG_FOOT_OFFSET_Y } from './constants.js';
 
 const _raycaster = new THREE.Raycaster();
 const _origin = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
-const _invRig = new THREE.Matrix4();
-const _xrCtrlPose = new THREE.Matrix4();
-const _ctrlLocal = new THREE.Matrix4();
+const _anchorM = new THREE.Matrix4();
+const _rawPose = new THREE.Matrix4();
+const _worldCtrl = new THREE.Matrix4();
 
 /**
- * Camera is parented to xrRig for locomotion, but WebXR writes controller matrices in
- * unparented reference space. Reparent controllers to xrRig and convert each frame:
- * local = inv(xrRigWorld) * xrPose.
+ * WebXR reports controller poses in session reference space (near physical floor origin).
+ * The camera uses xrRig at the *orbit* point, not the avatar feet — parenting there broke visuals.
+ * Each frame: worldMatrix = translate(avatar feet in world) * refSpacePose so rays sit by your hands.
  */
-export function syncXrControllersToRig() {
+export function syncXrControllersToWorldAnchor() {
   const r = state.renderer;
-  if (!r?.xr?.isPresenting || !state.xrRig) return;
+  if (!r?.xr?.isPresenting || !state.scene || !state.player) return;
 
-  state.xrRig.updateMatrixWorld(true);
-  _invRig.copy(state.xrRig.matrixWorld).invert();
+  const p = state.player.position;
+  _anchorM.makeTranslation(p.x, p.y + XR_RIG_FOOT_OFFSET_Y, p.z);
 
   for (let i = 0; i < 2; i++) {
     const c = r.xr.getController(i);
     attachXrControllerViz(c);
-    if (c.parent !== state.xrRig) {
+    if (c.parent !== state.scene) {
       if (c.parent) c.parent.remove(c);
-      state.xrRig.add(c);
+      state.scene.add(c);
     }
-    _xrCtrlPose.copy(c.matrix);
-    _ctrlLocal.multiplyMatrices(_invRig, _xrCtrlPose);
-    c.matrix.copy(_ctrlLocal);
-    c.matrixWorldNeedsUpdate = true;
+    c.matrixAutoUpdate = false;
+    _rawPose.copy(c.matrix);
+    _worldCtrl.multiplyMatrices(_anchorM, _rawPose);
+    c.matrix.copy(_worldCtrl);
+    c.updateMatrixWorld(true);
   }
 }
 
@@ -305,8 +307,8 @@ function onVrSessionStart() {
     c1.addEventListener('select', onControllerSelect);
     xrControllersWired = true;
   }
-  state.xrRig.add(c0);
-  state.xrRig.add(c1);
+  state.scene.add(c0);
+  state.scene.add(c1);
 
   document.getElementById('mobile-controls')?.classList.remove('visible');
   setEnterVrButton('session', document.getElementById('enter-vr'));

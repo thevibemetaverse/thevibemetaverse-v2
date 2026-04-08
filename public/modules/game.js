@@ -19,7 +19,7 @@ import { initClouds, updateClouds } from './clouds.js';
 import { initMultiplayer, updateMultiplayer, notifyLocalNameChanged } from './multiplayer.js';
 import { initNametag, setLocalNametagVisible } from './nametag.js';
 import { beginInputFrame } from './input.js';
-import { initWebXR, syncXrControllersToRig } from './webxr.js';
+import { initWebXR, syncXrControllersToWorldAnchor } from './webxr.js';
 
 export function init() {
   // Populate DOM refs
@@ -68,7 +68,7 @@ function animate(_time, frame) {
   updateClouds(delta);
   updatePortals();
   updateCamera();
-  syncXrControllersToRig();
+  syncXrControllersToWorldAnchor();
   if (state.animationMixer) state.animationMixer.update(delta);
   updateSettings();
   updateLocalAvatarForVr();

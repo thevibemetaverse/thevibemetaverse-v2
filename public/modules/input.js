@@ -163,10 +163,10 @@ function pollWebXrInput(xrFrame, renderer) {
   }
 
   /**
-   * In immersive WebXR, Meta browsers reliably expose thumbsticks on `navigator.getGamepads()`.
-   * Using session inputSources for axes is fragile (wrong pairs, trigger noise blocking fallbacks).
+   * Quest sometimes omits axes on `getGamepads()` in immersive mode; `inputSource.gamepad` can
+   * still have thumbsticks. Use whichever source has stronger deflection this frame.
    */
-  fillVrThumbsticksFromNavigatorGamepads();
+  fillVrThumbsticksImmersive(session);
 
   clampStickLen(state.controllerMove);
   clampStickLen(state.controllerLook);
@@ -181,7 +181,67 @@ function pollWebXrInput(xrFrame, renderer) {
   state.prevVrYButton = yPressed;
 }
 
-function fillVrThumbsticksFromNavigatorGamepads() {
+/**
+ * @param {XRSession} session
+ * @returns {{ lx: number, ly: number, rx: number, ry: number }}
+ */
+function readSticksFromXrInputSources(session) {
+  /** @type {XRInputSource[]} */
+  const withGamepad = [];
+  for (const src of session.inputSources) {
+    const gp = src.gamepad;
+    if (gp && gp.axes && gp.axes.length >= 2) withGamepad.push(src);
+  }
+
+  let lx = 0;
+  let ly = 0;
+  let rx = 0;
+  let ry = 0;
+  const hadLeft = withGamepad.some((s) => s.handedness === 'left');
+  const hadRight = withGamepad.some((s) => s.handedness === 'right');
+  /** @type {XRInputSource[]} */
+  const unknown = [];
+
+  for (const src of withGamepad) {
+    const gp = src.gamepad;
+    if (!gp) continue;
+    const t = pickBestThumbstickPair(gp);
+    if (src.handedness === 'left') {
+      lx += t.x;
+      ly += t.y;
+    } else if (src.handedness === 'right') {
+      rx += t.x;
+      ry += t.y;
+    } else {
+      unknown.push(src);
+    }
+  }
+
+  let ui = 0;
+  if (!hadLeft && unknown[ui]) {
+    const gp = unknown[ui++].gamepad;
+    if (gp) {
+      const t = pickBestThumbstickPair(gp);
+      lx += t.x;
+      ly += t.y;
+    }
+  }
+  if (!hadRight && unknown[ui]) {
+    const gp = unknown[ui].gamepad;
+    if (gp) {
+      const t = pickBestThumbstickPair(gp);
+      rx += t.x;
+      ry += t.y;
+    }
+  }
+
+  return { lx, ly, rx, ry };
+}
+
+/**
+ * @returns {{ lx: number, ly: number, rx: number, ry: number }}
+ */
+function getNavigatorVrSticks() {
   /** @type {Gamepad[]} */
   const pads = [];
   const list = navigator.getGamepads();
@@ -189,18 +249,14 @@ function fillVrThumbsticksFromNavigatorGamepads() {
     const gp = list[i];
     if (gp && gp.axes && gp.axes.length >= 2) pads.push(gp);
   }
-  if (pads.length === 0) return;
+  if (pads.length === 0) return { lx: 0, ly: 0, rx: 0, ry: 0 };
 
   for (let i = 0; i < pads.length; i++) {
     const gp = pads[i];
     if (gp.axes.length >= 4) {
       const m = applyVrStickDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
       const l = applyVrStickDeadzone(gp.axes[2] ?? 0, gp.axes[3] ?? 0);
-      state.controllerMove.x = m.x;
-      state.controllerMove.z = m.y;
-      state.controllerLook.x = l.x;
-      state.controllerLook.z = l.y;
-      return;
+      return { lx: m.x, ly: m.y, rx: l.x, ry: l.y };
     }
   }
 
@@ -209,16 +265,26 @@ function fillVrThumbsticksFromNavigatorGamepads() {
   if (pads.length >= 2) {
     const m = pickBestThumbstickPair(pads[0]);
     const l = pickBestThumbstickPair(pads[1]);
-    state.controllerMove.x = m.x;
-    state.controllerMove.z = m.y;
-    state.controllerLook.x = l.x;
-    state.controllerLook.z = l.y;
-    return;
+    return { lx: m.x, ly: m.y, rx: l.x, ry: l.y };
   }
 
   const m = pickBestThumbstickPair(pads[0]);
-  state.controllerMove.x = m.x;
-  state.controllerMove.z = m.y;
+  return { lx: m.x, ly: m.y, rx: 0, ry: 0 };
+}
+
+/**
+ * @param {XRSession} session
+ */
+function fillVrThumbsticksImmersive(session) {
+  const a = readSticksFromXrInputSources(session);
+  const b = getNavigatorVrSticks();
+  const magA = Math.abs(a.lx) + Math.abs(a.ly) + Math.abs(a.rx) + Math.abs(a.ry);
+  const magB = Math.abs(b.lx) + Math.abs(b.ly) + Math.abs(b.rx) + Math.abs(b.ry);
+  const u = magB > magA ? b : a;
+  state.controllerMove.x = u.lx;
+  state.controllerMove.z = u.ly;
+  state.controllerLook.x = u.rx;
+  state.controllerLook.z = u.ry;
 }
 
 function scanNavigatorGamepadsForVrY() {
