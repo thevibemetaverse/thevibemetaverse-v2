@@ -8,6 +8,54 @@ const _dir = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 
 let xrControllersWired = false;
+let xrControllerVisualsWired = false;
+
+const xrRayMaterial = new THREE.LineBasicMaterial({
+  color: 0x6fe0ff,
+  transparent: true,
+  opacity: 0.88,
+  depthTest: true,
+});
+const xrDotMaterial = new THREE.MeshBasicMaterial({ color: 0xaaddff, depthTest: true });
+
+/**
+ * Procedural target ray + aim dot on XR controller connect (Quest exposes empty Groups until then).
+ * @param {import('three').WebGLRenderer} renderer
+ */
+function wireXrControllerVisuals(renderer) {
+  if (xrControllerVisualsWired) return;
+  xrControllerVisualsWired = true;
+
+  for (let i = 0; i < 2; i++) {
+    const controller = renderer.xr.getController(i);
+    controller.addEventListener('connected', () => {
+      const lineGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, 0, 0),
+        new THREE.Vector3(0, 0, -1),
+      ]);
+      const line = new THREE.Line(lineGeom, xrRayMaterial);
+      line.name = 'xr-target-ray';
+      line.scale.z = 0.72;
+
+      const dotGeom = new THREE.SphereGeometry(0.015, 14, 14);
+      const dot = new THREE.Mesh(dotGeom, xrDotMaterial);
+      dot.name = 'xr-aim-orig';
+
+      controller.add(line);
+      controller.add(dot);
+      controller.userData.xrViz = { line, dot };
+    });
+    controller.addEventListener('disconnected', () => {
+      const v = controller.userData.xrViz;
+      if (!v) return;
+      controller.remove(v.line);
+      controller.remove(v.dot);
+      v.line.geometry.dispose();
+      v.dot.geometry.dispose();
+      delete controller.userData.xrViz;
+    });
+  }
+}
 
 /**
  * @param {'pending' | 'ready' | 'needs-https' | 'no-api' | 'unsupported' | 'error' | 'session'} mode
@@ -289,6 +337,8 @@ async function probeWebXrSupport(r) {
 export function initWebXR() {
   const r = state.renderer;
   if (!r) return;
+
+  wireXrControllerVisuals(r);
 
   r.xr.addEventListener('sessionstart', onVrSessionStart);
   r.xr.addEventListener('sessionend', onVrSessionEnd);

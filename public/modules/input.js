@@ -40,19 +40,60 @@ function isQuestLeftYPressed(gp) {
   return !!(b && b[4]?.pressed);
 }
 
+/**
+ * @param {Gamepad} a
+ * @param {Gamepad} b
+ */
+function sortGamepadsByHand(a, b) {
+  const rank = (/** @type {Gamepad} */ g) => {
+    const h = g.hand;
+    if (h === 'left') return 0;
+    if (h === 'right') return 1;
+    return 2;
+  };
+  return rank(a) - rank(b);
+}
+
 function pollNavigatorGamepads() {
-  const pads = navigator.getGamepads();
+  /** @type {Gamepad[]} */
+  const pads = [];
+  const list = navigator.getGamepads();
+  for (let i = 0; i < list.length; i++) {
+    const gp = list[i];
+    if (gp && gp.axes && gp.axes.length >= 2) pads.push(gp);
+  }
+  if (pads.length === 0) return;
+
   for (let i = 0; i < pads.length; i++) {
     const gp = pads[i];
-    if (!gp || gp.axes.length < 4) continue;
-    const left = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
-    const right = applyDeadzone(gp.axes[2] ?? 0, gp.axes[3] ?? 0);
-    state.controllerMove.x = left.x;
-    state.controllerMove.z = left.y;
-    state.controllerLook.x = right.x;
-    state.controllerLook.z = right.y;
+    if (gp.axes.length >= 4) {
+      const left = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
+      const right = applyDeadzone(gp.axes[2] ?? 0, gp.axes[3] ?? 0);
+      state.controllerMove.x = left.x;
+      state.controllerMove.z = left.y;
+      state.controllerLook.x = right.x;
+      state.controllerLook.z = right.y;
+      return;
+    }
+  }
+
+  pads.sort(sortGamepadsByHand);
+
+  if (pads.length >= 2) {
+    const movePad = pads[0];
+    const lookPad = pads[1];
+    const m = applyDeadzone(movePad.axes[0] ?? 0, movePad.axes[1] ?? 0);
+    const l = applyDeadzone(lookPad.axes[0] ?? 0, lookPad.axes[1] ?? 0);
+    state.controllerMove.x = m.x;
+    state.controllerMove.z = m.y;
+    state.controllerLook.x = l.x;
+    state.controllerLook.z = l.y;
     return;
   }
+
+  const m = applyDeadzone(pads[0].axes[0] ?? 0, pads[0].axes[1] ?? 0);
+  state.controllerMove.x = m.x;
+  state.controllerMove.z = m.y;
 }
 
 /**
@@ -74,22 +115,56 @@ function pollWebXrInput(xrFrame, renderer) {
   const session = renderer.xr.getSession();
   if (!session) return;
 
+  /** @type {XRInputSource[]} */
+  const withGamepad = [];
+  for (const src of session.inputSources) {
+    const gp = src.gamepad;
+    if (gp && gp.axes && gp.axes.length >= 2) withGamepad.push(src);
+  }
+
   let yPressed = false;
   let lx = 0;
   let ly = 0;
   let rx = 0;
   let ry = 0;
 
-  for (const src of session.inputSources) {
+  /** @type {XRInputSource[]} */
+  const unknown = [];
+
+  for (const src of withGamepad) {
     const gp = src.gamepad;
     if (!gp) continue;
+    const dz = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
     if (src.handedness === 'left') {
-      const dz = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
       lx += dz.x;
       ly += dz.y;
       if (isQuestLeftYPressed(gp)) yPressed = true;
     } else if (src.handedness === 'right') {
-      // Each XR input source exposes its own stick on axes 0–1 (not 2–3).
+      rx += dz.x;
+      ry += dz.y;
+    } else {
+      unknown.push(src);
+    }
+  }
+
+  const hadLeftHanded = withGamepad.some((s) => s.handedness === 'left');
+  const hadRightHanded = withGamepad.some((s) => s.handedness === 'right');
+
+  let ui = 0;
+  if (!hadLeftHanded && ui < unknown.length) {
+    const src = unknown[ui++];
+    const gp = src.gamepad;
+    if (gp) {
+      const dz = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
+      lx += dz.x;
+      ly += dz.y;
+      if (isQuestLeftYPressed(gp)) yPressed = true;
+    }
+  }
+  if (!hadRightHanded && ui < unknown.length) {
+    const src = unknown[ui++];
+    const gp = src.gamepad;
+    if (gp) {
       const dz = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
       rx += dz.x;
       ry += dz.y;
