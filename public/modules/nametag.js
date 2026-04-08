@@ -131,6 +131,14 @@ export function updateNametagText(sprite, name) {
 let localNametag = null;
 
 /**
+ * Toggle local nametag visibility (e.g. hide in VR first-person).
+ * @param {boolean} visible
+ */
+export function setLocalNametagVisible(visible) {
+  if (localNametag) localNametag.visible = visible;
+}
+
+/**
  * @param {object} opts
  * @param {() => void} opts.onNameChanged - called when the local player name changes (debounced)
  */

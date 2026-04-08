@@ -23,6 +23,27 @@ canvas { display: block; touch-action: none; }
   filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
 }
 
+#enter-vr {
+  pointer-events: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(127, 219, 255, 0.55);
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.95);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+}
+#enter-vr:hover {
+  background: rgba(0, 0, 0, 0.6);
+  border-color: rgba(127, 219, 255, 0.85);
+  color: #fff;
+}
+
 #player-name-input {
   position: fixed;
   top: 20px;

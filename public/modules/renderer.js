@@ -10,11 +10,14 @@ export function createRenderer() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE;
+  renderer.xr.enabled = true;
   document.body.appendChild(renderer.domElement);
   state.renderer = renderer;
 }
 
 export function onResize() {
+  if (state.renderer?.xr?.isPresenting) return;
+  if (!state.camera) return;
   state.camera.aspect = window.innerWidth / window.innerHeight;
   state.camera.updateProjectionMatrix();
   state.renderer.setSize(window.innerWidth, window.innerHeight);
