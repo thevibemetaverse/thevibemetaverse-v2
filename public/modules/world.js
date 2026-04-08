@@ -3,7 +3,15 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { Tree } from '@dgreenheck/ez-tree';
 import { state } from './state.js';
 import { seededRandom } from './utils.js';
-import { GROUND_SIZE, SKY_RADIUS, TREE_COUNT, TREE_MIN_DIST, TREE_MAX_DIST, TREE_CLEARANCE } from './constants.js';
+import {
+  GROUND_SIZE,
+  SKY_RADIUS,
+  TREE_COUNT,
+  TREE_MIN_DIST,
+  TREE_MAX_DIST,
+  TREE_CLEARANCE,
+  TREE_CENTER_CLEAR_RADIUS,
+} from './constants.js';
 
 export function createWorld() {
   createSky();
@@ -203,8 +211,8 @@ function createTrees() {
       (p) => Math.hypot(p.x - x, p.z - z) < TREE_CLEARANCE
     );
     if (tooClose) continue;
-    // Keep a big circle around spawn clear so the player has open space
-    if (Math.hypot(x, z) < 100) continue;
+    // Ring of trees around world origin; inner disk at (0,0,0) stays clear
+    if (Math.hypot(x, z) < TREE_CENTER_CLEAR_RADIUS) continue;
 
     const scale = 0.35 + rand() * 0.15;
     const rotY = rand() * Math.PI * 2;

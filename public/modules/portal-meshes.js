@@ -80,19 +80,32 @@ export function createTorusPortal(scene, { color, label, name, position }) {
   );
   group.add(pts);
 
-  // Label
+  // Label (wider canvas for long portal names)
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 64;
   const ctx = canvas.getContext('2d');
   const hexStr = '#' + color.toString(16).padStart(6, '0');
   ctx.fillStyle = hexStr;
-  ctx.font = 'bold 28px monospace';
+  let fontSize = 28;
+  const maxCanvasW = 1536;
+  const padX = 32;
+  ctx.font = `bold ${fontSize}px monospace`;
+  let textW = ctx.measureText(label).width;
+  while (textW > maxCanvasW - padX && fontSize > 14) {
+    fontSize -= 2;
+    ctx.font = `bold ${fontSize}px monospace`;
+    textW = ctx.measureText(label).width;
+  }
+  canvas.width = Math.min(maxCanvasW, Math.ceil(textW + padX));
+  canvas.height = 64;
+  ctx.fillStyle = hexStr;
+  ctx.font = `bold ${fontSize}px monospace`;
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
   ctx.fillText(label, canvas.width / 2, canvas.height / 2);
   const tex = new THREE.CanvasTexture(canvas);
+  const planeW = 30 * (canvas.width / 512);
   const labelMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(30, 5),
+    new THREE.PlaneGeometry(planeW, 5),
     new THREE.MeshBasicMaterial({
       map: tex,
       transparent: true,

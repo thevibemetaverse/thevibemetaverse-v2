@@ -7,10 +7,11 @@ import {
 import {
   PORTAL_ROW_Z,
   PORTAL_ROW_SPACING,
-  PORTAL_ROW_OFFSET_X,
-  PORTAL_PIETER_TORUS_EXTRA_X,
   PORTAL_PIETER_ELEVATION_Y,
   PORTAL_PIETER_X,
+  PORTAL_GLOBAL_X_OFFSET,
+  PLAYER_SPAWN_Z,
+  PORTAL_RETURN_Z,
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity } from './portal-proximity.js';
@@ -32,6 +33,23 @@ function portalRowSlotX(slotIndex, totalSlots, spacing = PORTAL_ROW_SPACING) {
 
 function hasPortalQueryParam() {
   return new URLSearchParams(window.location.search).get('portal') != null;
+}
+
+/** Label for the red return torus — `from_portal` from handoff, else hostname from `ref`. */
+function getReturnPortalLabel() {
+  const params = new URLSearchParams(window.location.search);
+  const explicit = params.get('from_portal')?.trim();
+  if (explicit) return explicit;
+  const ref = params.get('ref');
+  if (ref) {
+    try {
+      const host = new URL(ref).hostname.replace(/^www\./, '');
+      if (host) return host;
+    } catch {
+      /* ignore */
+    }
+  }
+  return 'Return';
 }
 
 /** Registry entries that point at this same page cause a reload loop. */
@@ -88,7 +106,7 @@ export async function initPortals(scene, player) {
 
   // Pieter portal is anchored at a fixed X on the right.
   // Registry portals extend leftward from there.
-  const pieterX = PORTAL_PIETER_X;
+  const pieterX = PORTAL_PIETER_X + PORTAL_GLOBAL_X_OFFSET;
   pieterPortal = createTorusPortal(scene, {
     color: 0x00ff00,
     label: 'VIBEVERSE PORTAL',
@@ -99,6 +117,7 @@ export async function initPortals(scene, player) {
       PORTAL_ROW_Z
     ),
   });
+  pieterPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
 
   // Position and scale registry portals extending leftward from pieter portal
   const PORTAL_SCALE = 2.5;
@@ -108,22 +127,22 @@ export async function initPortals(scene, player) {
     const x = pieterX - (totalSlots - slotIndex) * PORTAL_ROW_SPACING;
     portals[i].group.scale.setScalar(PORTAL_SCALE);
     portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, PORTAL_ROW_Z);
-    portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, 0);
+    portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
   }
 
-  // Red custom return portal (only when ?portal is set)
-  // Place it one spacing to the right of pieter so it never overlaps.
+  // Red return portal (?portal) — centered behind spawn, a few units along +Z.
   if (wantCustomPortal) {
     customRefPortal = createTorusPortal(scene, {
       color: 0xff0000,
-      label: 'CUSTOM PORTAL',
+      label: getReturnPortalLabel(),
       name: 'custom-ref-portal',
       position: new THREE.Vector3(
-        pieterX + PORTAL_ROW_SPACING,
+        PORTAL_GLOBAL_X_OFFSET,
         PORTAL_PIETER_ELEVATION_Y,
-        PORTAL_ROW_Z
+        PORTAL_RETURN_Z
       ),
     });
+    customRefPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
   }
 }
 

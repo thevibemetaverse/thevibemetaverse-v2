@@ -5,6 +5,10 @@
 
 // -- Player --
 export const PLAYER_MOVE_SPEED = 32;        // units per second
+/**
+ * Player starts at this +Z — the far (+Z) end of the open spawn area; hub row stays toward −Z.
+ */
+export const PLAYER_SPAWN_Z = 100;
 export const PLAYER_WORLD_LIMIT = 300;      // clamp position to ±limit
 export const PLAYER_TARGET_HEIGHT = 10.0;   // avatar scale target (units)
 export const ANIMATION_CROSSFADE = 0.25;    // seconds for idle↔run blend
@@ -28,8 +32,12 @@ export const TREE_COUNT = 30;
 export const TREE_MIN_DIST = 40;
 export const TREE_MAX_DIST = 250;
 export const TREE_CLEARANCE = 10;           // min distance between trees (larger for bigger trees)
+/** Trees avoid this radius around world origin (0,0,0); ring of trees sits outside this disk. */
+export const TREE_CENTER_CLEAR_RADIUS = 110;
 
 // -- Portals --
+/** Added to every portal world X (row, Pieter torus, return torus). */
+export const PORTAL_GLOBAL_X_OFFSET = -25;
 export const PORTAL_ROW_Z = -12;
 /** Horizontal gap between portal slots (wider = clearer of avatar arms in T-pose). */
 export const PORTAL_ROW_SPACING = 18;
@@ -50,6 +58,13 @@ export const PORTAL_CUSTOM_REF_ENTER_DIST = 1.5;
 export const PORTAL_PIETER_ELEVATION_Y = 4.9;
 /** Used for the custom return portal (?portal) — right flank X (see PORTAL_ROW_OFFSET_X). */
 export const PORTAL_PIETER_X = 18;
+/**
+ * Custom return portal (?portal) sits this far along +Z past {@link PLAYER_SPAWN_Z}
+ * (directly behind spawn on X=0).
+ */
+export const PORTAL_RETURN_BEHIND_SPAWN = 15;
+/** World Z for the red return torus — derived so it tracks spawn. */
+export const PORTAL_RETURN_Z = PLAYER_SPAWN_Z + PORTAL_RETURN_BEHIND_SPAWN;
 
 // -- Renderer --
 export const MAX_PIXEL_RATIO = 2;
