@@ -1,0 +1,38 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - set -e
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+      - |
+        if [ -n "$DOCKERHUB_SECRET_ARN" ] && [ "$DOCKERHUB_SECRET_ARN" != "none" ]; then
+          echo Logging in to Docker Hub for base image pulls...
+          SECRET=$(aws secretsmanager get-secret-value --secret-id "$DOCKERHUB_SECRET_ARN" --query SecretString --output text)
+          DH_USER=$(echo "$SECRET" | jq -r '.username // .docker_username // empty')
+          DH_PASS=$(echo "$SECRET" | jq -r '.password // .docker_password // empty')
+          if [ -z "$DH_USER" ] || [ -z "$DH_PASS" ] || [ "$DH_USER" = "null" ] || [ "$DH_PASS" = "null" ]; then
+            echo "Docker Hub secret must be JSON with username/password (or docker_username/docker_password)." >&2
+            exit 1
+          fi
+          echo "$DH_PASS" | docker login --username "$DH_USER" --password-stdin
+        fi
+      - COMMIT_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:-manual}"
+      - export IMAGE_TAG="${COMMIT_TAG:0:12}"
+      - export IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+      - echo "IMAGE_URI=$IMAGE_URI"
+  build:
+    commands:
+      - docker build -t "$IMAGE_URI" -f Dockerfile .
+  post_build:
+    commands:
+      - docker push "$IMAGE_URI"
+      - docker tag "$IMAGE_URI" "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+      - docker push "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+      - printf '[{"name":"app","imageUri":"%s"}]' "$IMAGE_URI" > imagedefinitions.json
+      - cat imagedefinitions.json
+
+artifacts:
+  files:
+    - imagedefinitions.json
