@@ -252,12 +252,8 @@ Resources:
       ContainerDefinitions:
         - Name: app
           Essential: true
-          Image: public.ecr.aws/docker/library/node:20-alpine
-          EntryPoint:
-            - node
-            - -e
-          Command:
-            - "require('http').createServer((q,s)=>s.end('ok')).listen(3000)"
+          # No EntryPoint/Command: deploy action only updates imageUri; overrides would persist on new revisions.
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${AppRepository}:latest'
           PortMappings:
             - ContainerPort: 3000
               Protocol: tcp
@@ -266,7 +262,7 @@ Resources:
             Options:
               awslogs-group: !Ref AppLogGroup
               awslogs-region: !Ref AWS::Region
-              awslogs-stream-prefix: bootstrap
+              awslogs-stream-prefix: app
 
   EcsService:
     Type: AWS::ECS::Service
@@ -416,6 +412,23 @@ Resources:
                   - ecs:RegisterTaskDefinition
                   - ecs:UpdateService
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ecs:TagResource
+                  - ecs:ListTagsForResource
+                  - ecs:UntagResource
+                Resource: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:task-definition/*'
+              - Effect: Allow
+                Action:
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:DescribeLoadBalancers
+                  - elasticloadbalancing:DescribeListeners
+                  - elasticloadbalancing:DescribeRules
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - iam:GetRole
+                Resource: !GetAtt TaskExecutionRole.Arn
               - Effect: Allow
                 Action:
                   - iam:PassRole
