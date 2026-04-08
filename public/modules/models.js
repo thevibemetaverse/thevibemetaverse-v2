@@ -1,6 +1,6 @@
 // @ts-check
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './loader.js';
 import { state } from './state.js';
 
 /**
@@ -36,7 +36,7 @@ const loadedModels = new Map();
 /** @type {Array<() => void>} */
 const onLoadCallbacks = [];
 
-const loader = new GLTFLoader();
+const loader = gltfLoader;
 
 /**
  * Load and place a single model in the scene.

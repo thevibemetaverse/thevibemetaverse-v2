@@ -1,9 +1,8 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './loader.js';
 import { state } from './state.js';
 import {
-  AVATAR_HARE_IDLE_TIME_SCALE,
-  AVATAR_HARE_LOCOMOTION_TIME_SCALE,
+  AVATAR_ANIM_OVERRIDES,
   PLAYER_TARGET_HEIGHT,
 } from './constants.js';
 
@@ -85,15 +84,9 @@ function applyAvatarAnimationTimeScale(
   idleAnimAction,
   runAnimAction
 ) {
-  const isHare =
-    typeof modelPath === 'string' && modelPath.includes('hare_animated');
-  if (isHare) {
-    if (idleAnimAction) idleAnimAction.timeScale = AVATAR_HARE_IDLE_TIME_SCALE;
-    if (runAnimAction) runAnimAction.timeScale = AVATAR_HARE_LOCOMOTION_TIME_SCALE;
-  } else {
-    if (idleAnimAction) idleAnimAction.timeScale = 1;
-    if (runAnimAction) runAnimAction.timeScale = 1;
-  }
+  const overrides = AVATAR_ANIM_OVERRIDES[modelPath];
+  if (idleAnimAction) idleAnimAction.timeScale = overrides?.idle ?? 1;
+  if (runAnimAction) runAnimAction.timeScale = overrides?.locomotion ?? 1;
 }
 
 /**
@@ -193,11 +186,12 @@ function applyLoadedGltf(gltf, /** @type {string} */ modelPath) {
 }
 
 export function loadPlayerModelFromUrl(modelPath) {
-  disposeCurrentPlayerModel();
-  const loader = new GLTFLoader();
-  loader.load(
+  gltfLoader.load(
     modelPath,
-    (gltf) => applyLoadedGltf(gltf, modelPath),
+    (gltf) => {
+      disposeCurrentPlayerModel();
+      applyLoadedGltf(gltf, modelPath);
+    },
     undefined,
     (err) => {
       console.error('Failed to load character model:', err);
@@ -226,7 +220,7 @@ export function setPlayerAvatarUrl(urlOrNull) {
   queueMicrotask(() =>
     import('./multiplayer.js')
       .then((m) => m.notifyLocalAvatarChanged())
-      .catch(() => {})
+      .catch((e) => console.warn('avatar notify failed:', e))
   );
 }
 
@@ -283,6 +277,7 @@ export function setMovingAnimationForContext(ctx, isMoving) {
 }
 
 export function setMovingAnimation(isMoving) {
+  if (!state.animationMixer || state.lastMovingState === isMoving) return;
   const ctx = {
     animationMixer: state.animationMixer,
     idleAnimAction: state.idleAnimAction,
