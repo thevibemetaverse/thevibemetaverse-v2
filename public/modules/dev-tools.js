@@ -3,9 +3,7 @@ import * as THREE from 'three';
 import { state } from './state.js';
 import { getLoadedModels, onModelLoaded } from './models.js';
 
-let panel = null;
 let selectedModel = null;
-let isActive = false;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -13,15 +11,9 @@ const mouse = new THREE.Vector2();
 const inputs = {};
 
 export function initDevTools() {
-  // Activate with ?dev=true in URL
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('dev') !== 'true') return;
-
-  isActive = true;
-  createPanel();
+  buildUI();
   setupClickSelection();
 
-  // When models finish loading, refresh dropdown and auto-select first
   onModelLoaded(() => {
     refreshDropdown();
     if (!selectedModel) {
@@ -29,125 +21,46 @@ export function initDevTools() {
       if (first) selectModel(first);
     }
   });
-
-  console.log('[Dev Tools] Active — double-click a model or use dropdown to select');
 }
 
-function createPanel() {
-  panel = document.createElement('div');
-  panel.id = 'dev-tools-panel';
-  panel.innerHTML = `
-    <style>
-      #dev-tools-panel {
-        position: fixed;
-        top: 10px;
-        right: 10px;
-        background: rgba(0, 0, 0, 0.85);
-        color: #eee;
-        padding: 14px;
-        border-radius: 8px;
-        font-family: monospace;
-        font-size: 13px;
-        z-index: 10000;
-        min-width: 260px;
-        user-select: none;
-      }
-      #dev-tools-panel h3 {
-        margin: 0 0 10px;
-        font-size: 14px;
-        color: #6cf;
-      }
-      #dev-tools-panel .dt-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 6px;
-      }
-      #dev-tools-panel label {
-        width: 28px;
-        text-align: right;
-        flex-shrink: 0;
-      }
-      #dev-tools-panel input[type="number"] {
-        width: 70px;
-        background: #222;
-        color: #eee;
-        border: 1px solid #555;
-        border-radius: 3px;
-        padding: 3px 5px;
-        font-family: monospace;
-        font-size: 12px;
-      }
-      #dev-tools-panel .dt-section {
-        margin-bottom: 10px;
-      }
-      #dev-tools-panel .dt-section-title {
-        color: #aaa;
-        font-size: 11px;
-        margin-bottom: 4px;
-        text-transform: uppercase;
-      }
-      #dev-tools-panel button {
-        background: #335;
-        color: #eee;
-        border: 1px solid #557;
-        border-radius: 4px;
-        padding: 5px 10px;
-        cursor: pointer;
-        font-family: monospace;
-        font-size: 12px;
-        margin-right: 6px;
-      }
-      #dev-tools-panel button:hover { background: #447; }
-      #dev-tools-panel .dt-model-name {
-        color: #6f6;
-        font-size: 13px;
-        margin-bottom: 8px;
-      }
-      #dev-tools-panel select {
-        background: #222;
-        color: #eee;
-        border: 1px solid #555;
-        border-radius: 3px;
-        padding: 3px 5px;
-        font-family: monospace;
-        font-size: 12px;
-        width: 100%;
-        margin-bottom: 8px;
-      }
-    </style>
-    <h3>Dev Tools</h3>
-    <div>
-      <select id="dt-model-select"><option value="">-- click or select model --</option></select>
+function buildUI() {
+  const slot = document.getElementById('dev-tools-slot');
+  if (!slot) return;
+
+  slot.innerHTML = `
+    <div class="settings-panel__divider"></div>
+    <div class="settings-panel__section-title">Model Editor</div>
+    <div class="settings-panel__row">
+      <select id="dt-model-select" class="settings-panel__select">
+        <option value="">-- select model --</option>
+      </select>
     </div>
     <div class="dt-model-name" id="dt-selected-name">No model selected</div>
-    <div class="dt-section">
-      <div class="dt-section-title">Position</div>
-      <div class="dt-row"><label>X</label><input type="number" id="dt-px" step="0.5"></div>
-      <div class="dt-row"><label>Y</label><input type="number" id="dt-py" step="0.5"></div>
-      <div class="dt-row"><label>Z</label><input type="number" id="dt-pz" step="0.5"></div>
+    <div class="settings-panel__section-title">Position</div>
+    <div class="settings-panel__input-row">
+      <label>X</label><input type="number" id="dt-px" step="0.5">
+      <label>Y</label><input type="number" id="dt-py" step="0.5">
+      <label>Z</label><input type="number" id="dt-pz" step="0.5">
     </div>
-    <div class="dt-section">
-      <div class="dt-section-title">Rotation (deg)</div>
-      <div class="dt-row"><label>X</label><input type="number" id="dt-rx" step="5"></div>
-      <div class="dt-row"><label>Y</label><input type="number" id="dt-ry" step="5"></div>
-      <div class="dt-row"><label>Z</label><input type="number" id="dt-rz" step="5"></div>
+    <div class="settings-panel__section-title">Rotation (deg)</div>
+    <div class="settings-panel__input-row">
+      <label>X</label><input type="number" id="dt-rx" step="5">
+      <label>Y</label><input type="number" id="dt-ry" step="5">
+      <label>Z</label><input type="number" id="dt-rz" step="5">
     </div>
-    <div class="dt-section">
-      <div class="dt-section-title">Scale</div>
-      <div class="dt-row"><label>X</label><input type="number" id="dt-sx" step="0.1"></div>
-      <div class="dt-row"><label>Y</label><input type="number" id="dt-sy" step="0.1"></div>
-      <div class="dt-row"><label>Z</label><input type="number" id="dt-sz" step="0.1"></div>
+    <div class="settings-panel__section-title">Scale</div>
+    <div class="settings-panel__input-row">
+      <label>X</label><input type="number" id="dt-sx" step="0.1">
+      <label>Y</label><input type="number" id="dt-sy" step="0.1">
+      <label>Z</label><input type="number" id="dt-sz" step="0.1">
     </div>
-    <div>
-      <button id="dt-copy">Copy Config</button>
-      <button id="dt-copy-all">Copy All</button>
+    <div class="settings-panel__row settings-panel__buttons">
+      <button id="dt-copy" type="button">Copy Config</button>
+      <button id="dt-copy-all" type="button">Copy All</button>
     </div>
-    <div id="dt-toast" style="display:none; margin-top:8px; color:#6f6; font-size:12px;"></div>
+    <div id="dt-toast" class="dt-toast"></div>
   `;
-  document.body.appendChild(panel);
 
-  // Cache input refs
   for (const id of ['px', 'py', 'pz', 'rx', 'ry', 'rz', 'sx', 'sy', 'sz']) {
     inputs[id] = /** @type {HTMLInputElement} */ (document.getElementById(`dt-${id}`));
     inputs[id].addEventListener('input', onInputChange);
@@ -160,12 +73,11 @@ function createPanel() {
 
 function refreshDropdown() {
   const select = /** @type {HTMLSelectElement} */ (document.getElementById('dt-model-select'));
+  if (!select) return;
   const models = getLoadedModels();
-  // Keep existing options if count matches
   const currentCount = select.options.length - 1;
   if (currentCount === models.size) return;
 
-  // Rebuild options
   select.innerHTML = '<option value="">-- select model --</option>';
   for (const [name] of models) {
     const opt = document.createElement('option');
@@ -184,13 +96,12 @@ function onDropdownSelect(e) {
 
 function selectModel(model) {
   selectedModel = model;
-  document.getElementById('dt-selected-name').textContent = model.name || '(unnamed)';
+  const nameEl = document.getElementById('dt-selected-name');
+  if (nameEl) nameEl.textContent = model.name || '(unnamed)';
 
-  // Update dropdown
   const select = /** @type {HTMLSelectElement} */ (document.getElementById('dt-model-select'));
-  select.value = model.name || '';
+  if (select) select.value = model.name || '';
 
-  // Fill inputs from model
   inputs.px.value = String(round(model.position.x));
   inputs.py.value = String(round(model.position.y));
   inputs.pz.value = String(round(model.position.z));
@@ -224,14 +135,12 @@ function onInputChange() {
 
 function setupClickSelection() {
   state.renderer.domElement.addEventListener('dblclick', (e) => {
-    if (!isActive) return;
     refreshDropdown();
 
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, state.camera);
 
-    // Collect all model meshes
     const targets = [];
     for (const [, model] of getLoadedModels()) {
       model.traverse((child) => {
@@ -241,7 +150,6 @@ function setupClickSelection() {
 
     const hits = raycaster.intersectObjects(targets, false);
     if (hits.length > 0) {
-      // Walk up to find the root model (direct child of scene)
       let obj = hits[0].object;
       while (obj.parent && obj.parent !== state.scene) {
         obj = obj.parent;
@@ -272,6 +180,7 @@ function getConfigForModel(model) {
 
 function showToast(msg) {
   const toast = document.getElementById('dt-toast');
+  if (!toast) return;
   toast.textContent = msg;
   toast.style.display = 'block';
   clearTimeout(toast._timer);
@@ -303,7 +212,5 @@ function round(n) {
 }
 
 export function updateDevTools() {
-  if (!isActive || !selectedModel) return;
-  // Sync inputs if model was moved externally
-  // (currently models are static, but this future-proofs it)
+  if (!selectedModel) return;
 }

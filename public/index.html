@@ -24,13 +24,18 @@
 
   <div id="settings-panel" class="settings-panel hidden">
     <div class="settings-panel__header">
-      <span>Settings</span>
+      <span>Dev Settings</span>
       <button id="settings-close" type="button" aria-label="Close settings">&times;</button>
     </div>
     <div class="settings-panel__row">
       <span>FPS</span>
       <span id="fps-counter">--</span>
     </div>
+    <div class="settings-panel__row">
+      <span>Commit</span>
+      <span id="commit-hash" class="settings-panel__mono">--</span>
+    </div>
+    <div id="dev-tools-slot"></div>
   </div>
 
   <div class="avatar-picker-shell">
