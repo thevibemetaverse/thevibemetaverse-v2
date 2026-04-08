@@ -68,8 +68,14 @@ export const PORTAL_RETURN_Z = PLAYER_SPAWN_Z + PORTAL_RETURN_BEHIND_SPAWN;
 
 // -- Renderer --
 export const MAX_PIXEL_RATIO = 2;
-export const TONE_MAPPING_EXPOSURE = 1.2;
+export const TONE_MAPPING_EXPOSURE = 1.1;
 export const SHADOW_MAP_SIZE = 2048;
+export const SUN_INTENSITY = 1.0;
+export const SUN_POSITION = [50, 40, 30];
+export const AMBIENT_INTENSITY = 0.55;
+export const HEMI_INTENSITY = 0.65;
+export const SHADOW_RADIUS = 4;
+export const SHADOW_NORMAL_BIAS = 0.02;
 
 // -- Animation --
 export const MAX_DELTA = 0.1;               // clamp frame delta to prevent physics jumps
