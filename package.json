@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "node -e \"process.exit(0)\"",
-    "start": "node server.js"
+    "start": "node server.js",
+    "sync-portals": "node scripts/sync-portals.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

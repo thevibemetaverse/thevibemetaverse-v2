@@ -47,7 +47,8 @@ export function createPortalMesh(opts = {}) {
   group.name = name;
 
   const portalRadius = 1.45 * scale;
-  const portalGeo = new THREE.CircleGeometry(portalRadius, 64);
+  // 48 segments: visually smooth; fewer vertices than 64 for hub rows with many portals
+  const portalGeo = new THREE.CircleGeometry(portalRadius, 48);
 
   // y offset: "center" keeps original 1.65 behavior, "bottom" places portal base at y=0
   const portalY = origin === 'bottom' ? portalRadius : 1.65 * scale;
@@ -121,13 +122,15 @@ export function createPortalMesh(opts = {}) {
   portalSurface.renderOrder = 1;
   group.add(portalSurface);
 
-  const light1 = new THREE.PointLight(color1, 3.5, 10 * scale);
-  light1.position.set(0, portalY, 0.9 * scale);
-  group.add(light1);
-
-  const light2 = new THREE.PointLight(color2, 2, 8 * scale);
-  light2.position.set(0, portalY, -0.4 * scale);
-  group.add(light2);
+  // One point light per portal: the disc is unlit (shader); extra lights only lit nearby
+  // meshes and scaled badly with many portals (2×N point lights).
+  const spill = new THREE.PointLight(
+    color1.clone().lerp(color2, 0.45),
+    4.2,
+    12 * scale
+  );
+  spill.position.set(0, portalY, 0.35 * scale);
+  group.add(spill);
 
   const canvas = document.createElement('canvas');
   canvas.width = 512;

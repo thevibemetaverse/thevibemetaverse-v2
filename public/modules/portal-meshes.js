@@ -21,9 +21,9 @@ export function createTorusPortal(scene, { color, label, name, position }) {
   const g = (color >> 8 & 0xFF) / 255;
   const b = (color & 0xFF) / 255;
 
-  // Torus ring
+  // Torus ring (keep visually full; lower tubular segments than 100 for FPS)
   const torus = new THREE.Mesh(
-    new THREE.TorusGeometry(15, 2, 16, 100),
+    new THREE.TorusGeometry(15, 2, 12, 48),
     new THREE.MeshPhongMaterial({
       color,
       emissive: color,
@@ -35,7 +35,7 @@ export function createTorusPortal(scene, { color, label, name, position }) {
 
   // Inner disc
   const inner = new THREE.Mesh(
-    new THREE.CircleGeometry(13, 32),
+    new THREE.CircleGeometry(13, 24),
     new THREE.MeshBasicMaterial({
       color,
       transparent: true,
@@ -45,8 +45,7 @@ export function createTorusPortal(scene, { color, label, name, position }) {
   );
   group.add(inner);
 
-  // Particles
-  const particleCount = 1000;
+  const particleCount = 420;
   const geo = new THREE.BufferGeometry();
   const positions = new Float32Array(particleCount * 3);
   const basePositions = new Float32Array(particleCount * 3);

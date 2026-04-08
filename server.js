@@ -3,7 +3,9 @@ import express from 'express';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { PORTALS_PRODUCTION_ORIGIN } from './vendor/portals/sdk/network.js';
+
+/** Must match portals/sdk/network.js on main (browser uses CDN; server does not load that file). */
+const PORTALS_PRODUCTION_ORIGIN = 'https://portal.thevibemetaverse.com';
 
 /** Ensure the static portal hub (network index) is listed so the metaverse is not the only destination. */
 function mergePortalHub(entries, portalsOrigin) {
@@ -68,8 +70,8 @@ app.get('/portals.json', async (req, res) => {
 
 app.use(express.static(join(__dirname, 'public')));
 app.use('/assets', express.static(join(__dirname, 'assets')));
-// Portal mesh: always served from vendor/ (separate portals repo is not bundled on deploy).
-// If you clone the portals repo beside this app (../portals), that copy wins locally for iteration.
+// Optional: serve a local portals clone for import-map overrides (see index.html comments).
+// Default: @vibe/portals loads from GitHub main via jsDelivr in the browser.
 const siblingPortals = join(__dirname, '..', 'portals');
 if (existsSync(siblingPortals)) {
   app.use('/vendor/portals', express.static(siblingPortals));

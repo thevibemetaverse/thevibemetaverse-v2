@@ -23,11 +23,15 @@ export async function fetchPortalsRegistry(registryUrlOrBase) {
 /**
  * Build a destination URL with portal handoff query params (ref, username, avatar).
  *
+ * If no explicit avatarUrl is provided, the source game's avatarUrl from the
+ * registry is used (looked up via sourcePortal or the current origin).
+ *
  * @param {{ url: string }} portal — Entry from the registry
  * @param {object} [options]
  * @param {string} [options.ref] — Defaults to current page (browser only)
  * @param {string | null} [options.username]
- * @param {string | null} [options.avatarUrl]
+ * @param {string | null} [options.avatarUrl] — Explicit avatar; overrides registry lookup
+ * @param {{ avatarUrl?: string } | null} [options.sourcePortal] — Source game's registry entry
  */
 export function buildPortalUrl(portal, options = {}) {
   if (typeof window === 'undefined') {
@@ -38,6 +42,11 @@ export function buildPortalUrl(portal, options = {}) {
   url.searchParams.set('portal', 'true');
   url.searchParams.set('ref', ref);
   if (options.username) url.searchParams.set('username', options.username);
-  if (options.avatarUrl) url.searchParams.set('avatar_url', options.avatarUrl);
+
+  const avatarUrl = options.avatarUrl
+    || (options.sourcePortal && options.sourcePortal.avatarUrl)
+    || null;
+  if (avatarUrl) url.searchParams.set('avatar_url', avatarUrl);
+
   return url.toString();
 }
