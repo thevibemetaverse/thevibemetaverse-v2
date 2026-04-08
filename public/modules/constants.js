@@ -36,6 +36,8 @@ export const TREE_CLEARANCE = 10;           // min distance between trees (large
 export const TREE_CENTER_CLEAR_RADIUS = 110;
 
 // -- Portals --
+/** Added to every portal world X (row, Pieter torus, return torus). */
+export const PORTAL_GLOBAL_X_OFFSET = -25;
 export const PORTAL_ROW_Z = -12;
 /** Horizontal gap between portal slots (wider = clearer of avatar arms in T-pose). */
 export const PORTAL_ROW_SPACING = 18;

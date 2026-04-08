@@ -9,6 +9,7 @@ import {
   PORTAL_ROW_SPACING,
   PORTAL_PIETER_ELEVATION_Y,
   PORTAL_PIETER_X,
+  PORTAL_GLOBAL_X_OFFSET,
   PLAYER_SPAWN_Z,
   PORTAL_RETURN_Z,
 } from './constants.js';
@@ -105,7 +106,7 @@ export async function initPortals(scene, player) {
 
   // Pieter portal is anchored at a fixed X on the right.
   // Registry portals extend leftward from there.
-  const pieterX = PORTAL_PIETER_X;
+  const pieterX = PORTAL_PIETER_X + PORTAL_GLOBAL_X_OFFSET;
   pieterPortal = createTorusPortal(scene, {
     color: 0x00ff00,
     label: 'VIBEVERSE PORTAL',
@@ -135,7 +136,11 @@ export async function initPortals(scene, player) {
       color: 0xff0000,
       label: getReturnPortalLabel(),
       name: 'custom-ref-portal',
-      position: new THREE.Vector3(0, PORTAL_PIETER_ELEVATION_Y, PORTAL_RETURN_Z),
+      position: new THREE.Vector3(
+        PORTAL_GLOBAL_X_OFFSET,
+        PORTAL_PIETER_ELEVATION_Y,
+        PORTAL_RETURN_Z
+      ),
     });
     customRefPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
   }
