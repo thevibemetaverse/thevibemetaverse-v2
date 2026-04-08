@@ -1,7 +1,7 @@
 // @ts-check
 import * as THREE from 'three';
 import { state } from './state.js';
-import { GAMEPAD_STICK_DEADZONE } from './constants.js';
+import { GAMEPAD_STICK_DEADZONE, VR_GAMEPAD_STICK_DEADZONE } from './constants.js';
 
 const _euler = new THREE.Euler();
 const _mat = new THREE.Matrix4();
@@ -18,6 +18,45 @@ function applyDeadzone(x, y) {
   if (m < GAMEPAD_STICK_DEADZONE) return { x: 0, y: 0 };
   const s = (m - GAMEPAD_STICK_DEADZONE) / (1 - GAMEPAD_STICK_DEADZONE) / m;
   return { x: x * s, y: y * s };
+}
+
+/**
+ * @param {number} x
+ * @param {number} y
+ */
+function applyVrStickDeadzone(x, y) {
+  const m = Math.hypot(x, y);
+  if (m < VR_GAMEPAD_STICK_DEADZONE) return { x: 0, y: 0 };
+  const s = (m - VR_GAMEPAD_STICK_DEADZONE) / (1 - VR_GAMEPAD_STICK_DEADZONE) / m;
+  return { x: x * s, y: y * s };
+}
+
+/**
+ * Quest / OpenXR sometimes map thumbstick to axes 2–3 or squeeze/trigger to 0–1.
+ * Pick the axis pair with the largest deflection after VR deadzone.
+ * @param {Gamepad} gp
+ */
+function pickBestThumbstickPair(gp) {
+  const a = gp.axes;
+  if (!a || a.length < 2) return { x: 0, y: 0 };
+  /** @type {Array<[number, number]>} */
+  const pairs = [[a[0] ?? 0, a[1] ?? 0]];
+  if (a.length >= 4) pairs.push([a[2] ?? 0, a[3] ?? 0]);
+  if (a.length >= 6) pairs.push([a[4] ?? 0, a[5] ?? 0]);
+
+  let bestX = 0;
+  let bestY = 0;
+  let bestMag = 0;
+  for (const [ax, ay] of pairs) {
+    const d = applyVrStickDeadzone(ax, ay);
+    const mag = Math.hypot(d.x, d.y);
+    if (mag > bestMag) {
+      bestMag = mag;
+      bestX = d.x;
+      bestY = d.y;
+    }
+  }
+  return { x: bestX, y: bestY };
 }
 
 /**
@@ -103,14 +142,14 @@ function pollNavigatorGamepads() {
  */
 function pollWebXrInput(xrFrame, renderer) {
   const ref = renderer.xr.getReferenceSpace();
-  if (!ref) return;
-
-  const pose = xrFrame.getViewerPose(ref);
-  if (pose) {
-    _mat.fromArray(pose.transform.matrix);
-    _mat.decompose(_vec, _quat, _scale);
-    _euler.setFromQuaternion(_quat, 'YXZ');
-    state.headYaw = _euler.y;
+  if (ref && xrFrame) {
+    const pose = xrFrame.getViewerPose(ref);
+    if (pose) {
+      _mat.fromArray(pose.transform.matrix);
+      _mat.decompose(_vec, _quat, _scale);
+      _euler.setFromQuaternion(_quat, 'YXZ');
+      state.headYaw = _euler.y;
+    }
   }
 
   const session = renderer.xr.getSession();
@@ -123,72 +162,11 @@ function pollWebXrInput(xrFrame, renderer) {
     if (isQuestLeftYPressed(gp)) yPressed = true;
   }
 
-  /** @type {XRInputSource[]} */
-  const withGamepad = [];
-  for (const src of session.inputSources) {
-    const gp = src.gamepad;
-    if (gp && gp.axes && gp.axes.length >= 2) withGamepad.push(src);
-  }
-
-  let lx = 0;
-  let ly = 0;
-  let rx = 0;
-  let ry = 0;
-
-  /** @type {XRInputSource[]} */
-  const unknown = [];
-
-  for (const src of withGamepad) {
-    const gp = src.gamepad;
-    if (!gp) continue;
-    const dz = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
-    if (src.handedness === 'left') {
-      lx += dz.x;
-      ly += dz.y;
-    } else if (src.handedness === 'right') {
-      rx += dz.x;
-      ry += dz.y;
-    } else {
-      unknown.push(src);
-    }
-  }
-
-  const hadLeftHanded = withGamepad.some((s) => s.handedness === 'left');
-  const hadRightHanded = withGamepad.some((s) => s.handedness === 'right');
-
-  let ui = 0;
-  if (!hadLeftHanded && ui < unknown.length) {
-    const src = unknown[ui++];
-    const gp = src.gamepad;
-    if (gp) {
-      const dz = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
-      lx += dz.x;
-      ly += dz.y;
-    }
-  }
-  if (!hadRightHanded && ui < unknown.length) {
-    const src = unknown[ui++];
-    const gp = src.gamepad;
-    if (gp) {
-      const dz = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
-      rx += dz.x;
-      ry += dz.y;
-    }
-  }
-
-  state.controllerMove.x = lx;
-  state.controllerMove.z = ly;
-  state.controllerLook.x = rx;
-  state.controllerLook.z = ry;
-
-  const stickMag =
-    Math.abs(lx) +
-    Math.abs(ly) +
-    Math.abs(rx) +
-    Math.abs(ry);
-  if (stickMag < 1e-4) {
-    mergeNavigatorGamepadsIntoVrSticks();
-  }
+  /**
+   * In immersive WebXR, Meta browsers reliably expose thumbsticks on `navigator.getGamepads()`.
+   * Using session inputSources for axes is fragile (wrong pairs, trigger noise blocking fallbacks).
+   */
+  fillVrThumbsticksFromNavigatorGamepads();
 
   clampStickLen(state.controllerMove);
   clampStickLen(state.controllerLook);
@@ -203,8 +181,7 @@ function pollWebXrInput(xrFrame, renderer) {
   state.prevVrYButton = yPressed;
 }
 
-/** Quest often exposes sticks via `getGamepads()` even when XR `inputSource.gamepad` is empty. */
-function mergeNavigatorGamepadsIntoVrSticks() {
+function fillVrThumbsticksFromNavigatorGamepads() {
   /** @type {Gamepad[]} */
   const pads = [];
   const list = navigator.getGamepads();
@@ -217,12 +194,12 @@ function mergeNavigatorGamepadsIntoVrSticks() {
   for (let i = 0; i < pads.length; i++) {
     const gp = pads[i];
     if (gp.axes.length >= 4) {
-      const left = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
-      const right = applyDeadzone(gp.axes[2] ?? 0, gp.axes[3] ?? 0);
-      state.controllerMove.x = left.x;
-      state.controllerMove.z = left.y;
-      state.controllerLook.x = right.x;
-      state.controllerLook.z = right.y;
+      const m = applyVrStickDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
+      const l = applyVrStickDeadzone(gp.axes[2] ?? 0, gp.axes[3] ?? 0);
+      state.controllerMove.x = m.x;
+      state.controllerMove.z = m.y;
+      state.controllerLook.x = l.x;
+      state.controllerLook.z = l.y;
       return;
     }
   }
@@ -230,8 +207,8 @@ function mergeNavigatorGamepadsIntoVrSticks() {
   pads.sort(sortGamepadsByHand);
 
   if (pads.length >= 2) {
-    const m = applyDeadzone(pads[0].axes[0] ?? 0, pads[0].axes[1] ?? 0);
-    const l = applyDeadzone(pads[1].axes[0] ?? 0, pads[1].axes[1] ?? 0);
+    const m = pickBestThumbstickPair(pads[0]);
+    const l = pickBestThumbstickPair(pads[1]);
     state.controllerMove.x = m.x;
     state.controllerMove.z = m.y;
     state.controllerLook.x = l.x;
@@ -239,7 +216,7 @@ function mergeNavigatorGamepadsIntoVrSticks() {
     return;
   }
 
-  const m = applyDeadzone(pads[0].axes[0] ?? 0, pads[0].axes[1] ?? 0);
+  const m = pickBestThumbstickPair(pads[0]);
   state.controllerMove.x = m.x;
   state.controllerMove.z = m.y;
 }
@@ -271,7 +248,7 @@ export function beginInputFrame(xrFrame) {
   const renderer = state.renderer;
   if (!renderer) return;
 
-  if (renderer.xr.isPresenting && xrFrame) {
+  if (renderer.xr.isPresenting) {
     pollWebXrInput(xrFrame, renderer);
   } else {
     state.prevVrYButton = false;

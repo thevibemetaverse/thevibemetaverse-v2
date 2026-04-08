@@ -24,6 +24,7 @@ export function syncXrControllersToRig() {
 
   for (let i = 0; i < 2; i++) {
     const c = r.xr.getController(i);
+    attachXrControllerViz(c);
     if (c.parent !== state.xrRig) {
       if (c.parent) c.parent.remove(c);
       state.xrRig.add(c);
@@ -41,10 +42,55 @@ let xrControllerVisualsWired = false;
 const xrRayMaterial = new THREE.LineBasicMaterial({
   color: 0x6fe0ff,
   transparent: true,
-  opacity: 0.88,
-  depthTest: true,
+  opacity: 0.95,
+  depthTest: false,
 });
-const xrDotMaterial = new THREE.MeshBasicMaterial({ color: 0xaaddff, depthTest: true });
+const xrDotMaterial = new THREE.MeshBasicMaterial({
+  color: 0xaaddff,
+  depthTest: false,
+});
+
+/**
+ * @param {THREE.Object3D} controller
+ */
+function attachXrControllerViz(controller) {
+  if (controller.userData.xrViz) return;
+
+  const lineGeom = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, -1),
+  ]);
+  const line = new THREE.Line(lineGeom, xrRayMaterial);
+  line.name = 'xr-target-ray';
+  line.frustumCulled = false;
+  line.renderOrder = 10002;
+  line.scale.z = 1.85;
+
+  const dotGeom = new THREE.SphereGeometry(0.022, 16, 16);
+  const dot = new THREE.Mesh(dotGeom, xrDotMaterial);
+  dot.name = 'xr-aim-orig';
+  dot.frustumCulled = false;
+  dot.renderOrder = 10003;
+
+  const ringGeom = new THREE.TorusGeometry(0.038, 0.007, 10, 28);
+  const ringMat = new THREE.MeshBasicMaterial({
+    color: 0xff4dce,
+    depthTest: false,
+    transparent: true,
+    opacity: 0.92,
+  });
+  const ring = new THREE.Mesh(ringGeom, ringMat);
+  ring.name = 'xr-grip-ring';
+  ring.rotation.x = Math.PI / 2;
+  ring.position.z = 0.02;
+  ring.frustumCulled = false;
+  ring.renderOrder = 10001;
+
+  controller.add(line);
+  controller.add(dot);
+  controller.add(ring);
+  controller.userData.xrViz = { line, dot, ring, ringMat };
+}
 
 /**
  * Procedural target ray + aim dot on XR controller connect (Quest exposes empty Groups until then).
@@ -57,29 +103,18 @@ function wireXrControllerVisuals(renderer) {
   for (let i = 0; i < 2; i++) {
     const controller = renderer.xr.getController(i);
     controller.addEventListener('connected', () => {
-      const lineGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(0, 0, -1),
-      ]);
-      const line = new THREE.Line(lineGeom, xrRayMaterial);
-      line.name = 'xr-target-ray';
-      line.scale.z = 0.72;
-
-      const dotGeom = new THREE.SphereGeometry(0.015, 14, 14);
-      const dot = new THREE.Mesh(dotGeom, xrDotMaterial);
-      dot.name = 'xr-aim-orig';
-
-      controller.add(line);
-      controller.add(dot);
-      controller.userData.xrViz = { line, dot };
+      attachXrControllerViz(controller);
     });
     controller.addEventListener('disconnected', () => {
       const v = controller.userData.xrViz;
       if (!v) return;
       controller.remove(v.line);
       controller.remove(v.dot);
+      if (v.ring) controller.remove(v.ring);
       v.line.geometry.dispose();
       v.dot.geometry.dispose();
+      if (v.ring) v.ring.geometry.dispose();
+      if (v.ringMat) v.ringMat.dispose();
       delete controller.userData.xrViz;
     });
   }

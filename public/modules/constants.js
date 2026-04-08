@@ -89,6 +89,8 @@ export const SHADOW_NORMAL_BIAS = 0.02;
 // -- WebXR / gamepad --
 /** Ignore stick noise below this magnitude (0–1). */
 export const GAMEPAD_STICK_DEADZONE = 0.16;
+/** Looser deadzone while in WebXR (Quest thumbsticks can be subtle). */
+export const VR_GAMEPAD_STICK_DEADZONE = 0.08;
 /** Right stick orbit / comfort-turn (rad/s at full deflection). */
 export const GAMEPAD_ORBIT_SPEED = 2.2;
 /** First-person VR: right-stick yaw rate (rad/s) for comfort turning. */
