@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { COMMIT_HASH } from './version.js';
 
 let panel;
 let fpsEl;
@@ -10,7 +11,9 @@ export function initSettings() {
   panel = document.getElementById('settings-panel');
   fpsEl = document.getElementById('fps-counter');
   const closeBtn = document.getElementById('settings-close');
+  const commitEl = document.getElementById('commit-hash');
 
+  commitEl.textContent = COMMIT_HASH;
   closeBtn.addEventListener('click', () => toggle(false));
 
   window.addEventListener('keydown', (e) => {
