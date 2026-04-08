@@ -10,6 +10,12 @@ import { enterRoom } from './meeting-room.js';
 
 const PIETER_PORTAL_URL = 'https://portal.pieter.com';
 
+/** Generate a short unique room ID. */
+function uniqueRoomId(prefix) {
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${prefix}-${rand}`;
+}
+
 /** Ground-plane distance — portal groups are elevated in Y, so 3D distance never matches tuning. */
 function distanceXZ(a, b) {
   const dx = a.x - b.x;
@@ -121,7 +127,7 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
       navigating = true;
-      const roomId = 'ref-' + (fromPortalName || 'return').replace(/\s+/g, '-').toLowerCase();
+      const roomId = uniqueRoomId('ref');
       if (promptEl) promptEl.style.display = 'none';
       enterRoom(roomId, refUrl.startsWith('http') ? refUrl : 'https://' + refUrl);
       navigating = false;
@@ -134,7 +140,7 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
       navigating = true;
       if (promptEl) promptEl.style.display = 'none';
       const pieterUrl = buildPieterPortalUrl();
-      enterRoom('vibeverse-portal', pieterUrl);
+      enterRoom(uniqueRoomId('vibeverse'), pieterUrl);
       navigating = false;
     }
   } else if (best?.kind === 'registry' && best.portal && !navigating) {
@@ -151,8 +157,8 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
         fromPortal: document.title || undefined,
       });
       if (promptEl) promptEl.style.display = 'none';
-      const roomId = best.portal.data.slug || portalTitle.replace(/\s+/g, '-').toLowerCase();
-      enterRoom(roomId, gameUrl);
+      const slug = best.portal.data.slug || portalTitle.replace(/\s+/g, '-').toLowerCase();
+      enterRoom(uniqueRoomId(slug), gameUrl);
       navigating = false;
     }
   } else if (promptEl) {

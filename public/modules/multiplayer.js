@@ -209,7 +209,7 @@ function handleMessage(raw) {
       break;
     }
     case 'room_info': {
-      // Update room countdown info for portal display
+      // Update room countdown info for portal display + current room
       if (Array.isArray(msg.rooms)) {
         state.roomCountdowns.clear();
         for (const r of msg.rooms) {
@@ -218,6 +218,11 @@ function handleMessage(raw) {
               countdown: r.countdown ?? 60,
               playerCount: r.playerCount ?? 0,
             });
+            // Update current room countdown
+            if (r.roomId === state.currentRoom) {
+              state.roomCountdown = r.countdown ?? null;
+              state.roomPlayers = Array.isArray(r.players) ? r.players : [];
+            }
           }
         }
       }

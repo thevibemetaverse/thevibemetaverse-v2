@@ -34,15 +34,6 @@ let screenDirty = true;
 let lastCountdown = -1;
 let lastPlayerCount = -1;
 
-/** @type {HTMLElement | null} */
-let overlayEl = null;
-/** @type {HTMLElement | null} */
-let countdownEl = null;
-/** @type {HTMLElement | null} */
-let playerListEl = null;
-/** @type {HTMLButtonElement | null} */
-let inviteBtnEl = null;
-
 /** The portal position the player entered from, so we can return them nearby. */
 let entryReturnZ = PLAYER_SPAWN_Z;
 let savedOrbitAngle = 0;
@@ -57,15 +48,13 @@ let modelLoaded = false;
 let pendingJoin = null;
 
 export function initMeetingRoom() {
-  // Cache DOM refs
-  overlayEl = document.getElementById('room-overlay');
-  countdownEl = document.getElementById('room-countdown');
-  playerListEl = document.getElementById('room-player-list');
-  inviteBtnEl = /** @type {HTMLButtonElement | null} */ (document.getElementById('room-invite-btn'));
-
-  if (inviteBtnEl) {
-    inviteBtnEl.addEventListener('click', copyInviteLink);
-  }
+  // Copy invite link with C key
+  window.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (state.currentRoom !== 'lobby' && e.code === 'KeyC') {
+      copyInviteLink();
+    }
+  });
 
   // Create room group
   roomGroup = new THREE.Group();
@@ -211,8 +200,6 @@ export function enterRoom(roomId, gameUrl) {
       MEETING_ROOM_PLAYER_SPAWN.y,
       MEETING_ROOM_PLAYER_SPAWN.z
     );
-    // Face the player toward the camera (180° + orbit angle offset)
-    state.player.rotation.y = Math.PI + 0.4;
   }
 
   // Tighten camera for indoor + slight angle
@@ -220,8 +207,17 @@ export function enterRoom(roomId, gameUrl) {
   state.orbitHeight = ROOM_CAMERA_ORBIT_HEIGHT;
   state.orbitAngle = 0.4;
 
-  // Show room UI
-  if (overlayEl) overlayEl.classList.remove('hidden');
+  // Face the player toward the camera
+  if (state.player) {
+    state.player.rotation.y = state.orbitAngle + Math.PI;
+  }
+
+  // Update browser URL to the room link
+  const roomUrl = `/room/${encodeURIComponent(roomId)}`;
+  window.history.pushState({ roomId }, '', roomUrl);
+
+  // Show copy link UI
+  showCopyLinkUI();
 
   // Send join_room via WS
   sendRoomMessage({ type: 'join_room', roomId, gameUrl });
@@ -262,8 +258,11 @@ export function exitRoom() {
   state.orbitHeight = CAMERA_ORBIT_HEIGHT;
   state.orbitAngle = savedOrbitAngle;
 
-  // Hide room UI
-  if (overlayEl) overlayEl.classList.add('hidden');
+  // Restore browser URL
+  window.history.pushState({}, '', '/');
+
+  // Hide copy link UI
+  hideCopyLinkUI();
 }
 
 /**
@@ -284,20 +283,6 @@ export function updateMeetingRoom(_delta) {
   if (screenDirty) {
     renderScreen();
     screenDirty = false;
-  }
-
-  // Update HUD overlay
-  if (countdownEl) {
-    const secs = state.roomCountdown ?? 60;
-    countdownEl.textContent = String(secs);
-  }
-  if (playerListEl) {
-    const names = state.roomPlayers.map((p) => p.name);
-    // Add local player
-    if (state.localPlayerName && !names.includes(state.localPlayerName)) {
-      names.unshift(state.localPlayerName);
-    }
-    playerListEl.textContent = names.length + ' player' + (names.length !== 1 ? 's' : '') + ' waiting';
   }
 
   // Check exit door proximity
@@ -364,17 +349,64 @@ function renderScreen() {
   screenTexture.needsUpdate = true;
 }
 
+let copiedFeedbackTimer = null;
+let showCopiedFeedback = false;
+
 function copyInviteLink() {
   const url = `${window.location.origin}/room/${encodeURIComponent(state.currentRoom)}`;
   navigator.clipboard.writeText(url).then(() => {
-    if (inviteBtnEl) {
-      const orig = inviteBtnEl.textContent;
-      inviteBtnEl.textContent = 'Copied!';
-      setTimeout(() => {
-        if (inviteBtnEl) inviteBtnEl.textContent = orig;
-      }, 2000);
-    }
+    showCopiedFeedback = true;
+    screenDirty = true;
+    if (copiedFeedbackTimer) clearTimeout(copiedFeedbackTimer);
+    copiedFeedbackTimer = setTimeout(() => {
+      showCopiedFeedback = false;
+      screenDirty = true;
+    }, 2000);
   }).catch(() => {});
+}
+
+/** @type {HTMLElement | null} */
+let copyLinkContainer = null;
+
+function showCopyLinkUI() {
+  if (copyLinkContainer) {
+    copyLinkContainer.style.display = 'flex';
+    return;
+  }
+  copyLinkContainer = document.createElement('div');
+  copyLinkContainer.style.cssText = `
+    position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
+    z-index: 20; display: flex; align-items: center; gap: 10px;
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px; backdrop-filter: blur(10px);
+    font-family: 'Courier New', monospace; color: #fff;
+  `;
+
+  const btn = document.createElement('button');
+  btn.textContent = 'Copy Invite Link';
+  btn.style.cssText = `
+    padding: 8px 20px; font-family: 'Courier New', monospace; font-size: 14px;
+    color: #fff; background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 8px;
+    cursor: pointer; transition: background 0.15s;
+  `;
+  btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(255,255,255,0.25)'; });
+  btn.addEventListener('mouseleave', () => { btn.style.background = 'rgba(255,255,255,0.12)'; });
+  btn.addEventListener('click', () => {
+    copyInviteLink();
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Invite Link'; }, 2000);
+  });
+
+  copyLinkContainer.appendChild(btn);
+  document.body.appendChild(copyLinkContainer);
+}
+
+function hideCopyLinkUI() {
+  if (copyLinkContainer) {
+    copyLinkContainer.style.display = 'none';
+  }
 }
 
 /** @type {WebSocket | null} */
