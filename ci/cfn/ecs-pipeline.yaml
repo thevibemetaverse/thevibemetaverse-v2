@@ -353,6 +353,7 @@ Resources:
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       Artifacts:
         Type: CODEPIPELINE
+      Buildspec: ci/buildspec.yml
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
@@ -369,7 +370,6 @@ Resources:
             Value: !Ref DockerHubSecretArn
       Source:
         Type: CODEPIPELINE
-        Buildspec: ci/buildspec.yml
       Tags:
         - Key: Name
           Value: !Sub '${AWS::StackName}-build'
