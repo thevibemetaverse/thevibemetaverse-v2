@@ -4,6 +4,8 @@ import { WebSocketServer } from 'ws';
 const WORLD_LIMIT = 300;
 const STALE_MS = 45_000;
 const PRUNE_INTERVAL_MS = 10_000;
+const DEFAULT_PLAYER_NAME = 'metaverse-explorer';
+const MAX_NAME_LENGTH = 20;
 
 function clampWorld(n) {
   if (!Number.isFinite(n)) return 0;
@@ -17,7 +19,7 @@ function clampWorld(n) {
 export function attachMultiplayerWebSocket(server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-  /** @type {Map<import('ws').WebSocket, { id: string, avatarUrl: string, lastSeen: number }>} */
+  /** @type {Map<import('ws').WebSocket, { id: string, avatarUrl: string, name: string, lastSeen: number }>} */
   const sockets = new Map();
 
   function broadcast(obj, except) {
@@ -68,12 +70,13 @@ export function attachMultiplayerWebSocket(server) {
         if (meta) return;
         const id = randomUUID();
         const avatarUrl = typeof msg.avatarUrl === 'string' ? msg.avatarUrl : '';
-        sockets.set(ws, { id, avatarUrl, lastSeen: Date.now() });
+        const name = typeof msg.name === 'string' ? msg.name.trim().slice(0, MAX_NAME_LENGTH) || DEFAULT_PLAYER_NAME : DEFAULT_PLAYER_NAME;
+        sockets.set(ws, { id, avatarUrl, name, lastSeen: Date.now() });
 
         const others = [];
         for (const [otherWs, m] of sockets) {
           if (otherWs === ws) continue;
-          others.push({ id: m.id, avatarUrl: m.avatarUrl });
+          others.push({ id: m.id, avatarUrl: m.avatarUrl, name: m.name });
         }
         ws.send(
           JSON.stringify({
@@ -82,7 +85,7 @@ export function attachMultiplayerWebSocket(server) {
             players: others,
           })
         );
-        broadcast({ type: 'player_joined', id, avatarUrl }, ws);
+        broadcast({ type: 'player_joined', id, avatarUrl, name }, ws);
         return;
       }
 
@@ -97,6 +100,13 @@ export function attachMultiplayerWebSocket(server) {
         const next = typeof msg.avatarUrl === 'string' ? msg.avatarUrl : '';
         meta.avatarUrl = next;
         broadcast({ type: 'player_avatar', id: meta.id, avatarUrl: next }, ws);
+        return;
+      }
+
+      if (msg.type === 'name') {
+        const next = typeof msg.name === 'string' ? msg.name.trim().slice(0, MAX_NAME_LENGTH) || DEFAULT_PLAYER_NAME : DEFAULT_PLAYER_NAME;
+        meta.name = next;
+        broadcast({ type: 'player_name', id: meta.id, name: next }, ws);
         return;
       }
 

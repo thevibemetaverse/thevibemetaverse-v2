@@ -13,6 +13,8 @@ export const PLAYER_WORLD_LIMIT = 300;      // clamp position to ±limit
 export const PLAYER_TARGET_HEIGHT = 10.0;   // avatar scale target (units)
 export const ANIMATION_CROSSFADE = 0.25;    // seconds for idle↔run blend
 
+export const DEFAULT_PLAYER_NAME = 'metaverse-explorer';
+
 // -- Camera --
 export const CAMERA_FOV = 60;
 export const CAMERA_NEAR = 0.1;

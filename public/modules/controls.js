@@ -13,6 +13,7 @@ export function setupPlayerControls() {
   });
 
   window.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (state.gameState === 'EXPLORING') {
       state.keys[e.code] = true;
     }

@@ -1,6 +1,6 @@
 // @ts-check
 import * as THREE from 'three';
-import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
+import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from './constants.js';
 
 /**
  * @typedef {'EXPLORING' | 'PROMPTING'} GameState
@@ -15,6 +15,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
  * @typedef {Object} RemotePlayerRecord
  * @property {string} id
  * @property {string} avatarUrl
+ * @property {string} name
  * @property {import('three').Group} group
  * @property {import('three').Object3D | null} modelRoot
  * @property {import('three').AnimationMixer | null} animationMixer
@@ -24,6 +25,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
  * @property {import('three').Vector3} targetPosition
  * @property {number} targetRotY
  * @property {boolean} moving
+ * @property {import('three').Sprite | null} nametagSprite
  */
 
 /**
@@ -56,6 +58,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
  *
  * @property {string | null} localPlayerId - Assigned by multiplayer welcome (UUID).
  * @property {boolean} localPlayerMoving - Updated each frame from movement input (for network).
+ * @property {string} localPlayerName - Display name above head (default 'metaverse-explorer').
  *
  * @property {Map<string, RemotePlayerRecord>} remotePlayers - Other clients (id → record).
  *
@@ -95,6 +98,7 @@ export const state = {
 
   localPlayerId: null,
   localPlayerMoving: false,
+  localPlayerName: DEFAULT_PLAYER_NAME,
   remotePlayers: new Map(),
 
   // DOM refs (populated in init)
