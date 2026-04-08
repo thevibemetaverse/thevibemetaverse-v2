@@ -10,10 +10,54 @@ import { enterRoom } from './meeting-room.js';
 
 const PIETER_PORTAL_URL = 'https://portal.pieter.com';
 
-/** Generate a short unique room ID. */
-function uniqueRoomId(prefix) {
-  const rand = Math.random().toString(36).slice(2, 8);
-  return `${prefix}-${rand}`;
+/** Fun metaverse-themed room name slugs. */
+const ROOM_NAMES = [
+  // Snow Crash
+  'sweet-bby-rays',
+  'hiro-protagonist',
+  'yt',
+  'raven',
+  'juanita-marquez',
+  'uncle-enzo',
+  'lagos',
+  'yts-mom',
+  'black-sun',
+  'the-street',
+  'snow-crash',
+  'metaball',
+  'reason',
+  'kourier',
+  'mr-lee',
+  'ng-security',
+  'avatara',
+  'da5id',
+  'the-deliverator',
+  'cosa-nostra-pizza',
+  'rat-thing',
+  'the-librarian',
+  'burbclave',
+  'franchise-ghetto',
+  'vitaly-chernobyl',
+  'enki',
+  'babel',
+  'brandy',
+  // Metaverse culture
+  'crypto-is-not-the-metaverse',
+  'open-metaverse',
+  'big-green-egg',
+  'the-oasis',
+  'the-matrix',
+  'second-life-og',
+  'club-penguin-walked-so-we-could-run',
+  'habbo-hotel',
+  'touch-grass',
+];
+
+/** Pick a random fun room name. */
+function uniqueRoomId(_prefix) {
+  const name = ROOM_NAMES[Math.floor(Math.random() * ROOM_NAMES.length)];
+  const rand = Math.random().toString(36).slice(2, 5);
+  return `${name}-${rand}`;
 }
 
 /** Ground-plane distance — portal groups are elevated in Y, so 3D distance never matches tuning. */

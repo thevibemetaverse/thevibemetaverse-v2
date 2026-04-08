@@ -92,10 +92,10 @@ export function initMeetingRoom() {
   screenTexture = new THREE.CanvasTexture(screenCanvas);
   screenTexture.minFilter = THREE.LinearFilter;
 
-  const screenGeo = new THREE.PlaneGeometry(22, 9);
+  const screenGeo = new THREE.PlaneGeometry(28, 9);
   const screenMat = new THREE.MeshBasicMaterial({ map: screenTexture, side: THREE.DoubleSide });
   wallScreen = new THREE.Mesh(screenGeo, screenMat);
-  wallScreen.position.set(0, 12.5, -24);
+  wallScreen.position.set(-2.5, 12.5, -30.9);
   roomGroup.add(wallScreen);
 
   // Recessed door cutout on the wall, to the right of the countdown screen
