@@ -3,7 +3,7 @@ import { state } from './state.js';
 import { FOG_DENSITY, MAX_DELTA } from './constants.js';
 import { createRenderer, onResize } from './renderer.js';
 import { createCamera, updateCamera } from './camera.js';
-import { createWorld } from './world.js';
+import { createWorld, updateTrees } from './world.js';
 import { setupLighting } from './lighting.js';
 import { createPlayer, updatePlayer } from './player.js';
 import { loadPlayerModel } from './character.js';
@@ -52,6 +52,7 @@ function animate() {
   const delta = Math.min(state.clock.getDelta(), MAX_DELTA);
   updatePlayer(delta);
   updateGrass();
+  updateTrees();
   updateClouds(delta);
   updatePortals();
   updateCamera();

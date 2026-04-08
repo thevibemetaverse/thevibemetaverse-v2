@@ -13,6 +13,8 @@ import {
   TREE_CENTER_CLEAR_RADIUS,
 } from './constants.js';
 
+let leafMaterial = null;
+
 export function createWorld() {
   createSky();
   createGround();
@@ -225,7 +227,6 @@ function createTrees() {
   const barkGeoms = [];
   const leafGeoms = [];
   let barkMat = null;
-  let leafMat = null;
 
   function processBatch() {
     const end = Math.min(idx + BATCH, positions.length);
@@ -249,7 +250,7 @@ function createTrees() {
         // Bark meshes have textured materials, leaves have alpha
         if (child.material.alphaTest > 0) {
           leafGeoms.push(geo);
-          if (!leafMat) leafMat = child.material;
+          if (!leafMaterial) leafMaterial = child.material;
         } else {
           barkGeoms.push(geo);
           if (!barkMat) barkMat = child.material;
@@ -278,7 +279,7 @@ function createTrees() {
       }
       if (leafGeoms.length) {
         const merged = mergeGeometries(leafGeoms, false);
-        const mesh = new THREE.Mesh(merged, leafMat);
+        const mesh = new THREE.Mesh(merged, leafMaterial);
         mesh.castShadow = true;
         state.scene.add(mesh);
         leafGeoms.forEach((g) => g.dispose());
@@ -287,4 +288,18 @@ function createTrees() {
   }
 
   processBatch();
+}
+
+let leafShaderUniforms = null;
+
+export function updateTrees() {
+  if (!leafShaderUniforms) {
+    const shader = leafMaterial?.userData?.shader;
+    if (!shader) return;
+    leafShaderUniforms = shader.uniforms;
+    leafShaderUniforms.uWindStrength.value.set(0.35, 0.0, 0.35);
+    leafShaderUniforms.uWindFrequency.value = 0.4;
+    leafShaderUniforms.uWindScale.value = 120;
+  }
+  leafShaderUniforms.uTime.value = state.clock.elapsedTime / 4;
 }
