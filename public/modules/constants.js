@@ -30,13 +30,22 @@ export const TREE_MAX_DIST = 250;
 export const TREE_CLEARANCE = 10;           // min distance between trees (larger for bigger trees)
 
 // -- Portals --
-export const PORTAL_ROW_Z = -12;
-/** Horizontal gap between portal slots (wider = clearer of avatar arms in T-pose). */
-export const PORTAL_ROW_SPACING = 18;
-/** Shift the whole row in +X (negative = left on screen) so the right portal clears the Jam widget. */
+/** Lateral gap between the two parallel hallway lines (each line is ± half this value from center). */
+export const PORTAL_ROW_SPACING = 30;
+export const PORTAL_HALLWAY_LANE_HALF = PORTAL_ROW_SPACING / 2;
+/** First registry portal sits at this Z; deeper portals use more negative Z. */
+export const PORTAL_HALLWAY_START_Z = -10;
+/** Distance along -Z between consecutive portals in the alternating hallway. */
+export const PORTAL_HALLWAY_DEPTH_STEP = 16;
+/** Extra -Z past the last registry/hub portal before Pieter’s terminal portal (center). */
+export const PORTAL_PIETER_TERMINAL_GAP = 10;
+/** Return portal (?portal) sits at +Z — behind spawn when facing the hallway. */
+export const PORTAL_RETURN_Z = 18;
+/** Shift the whole hallway in +X (negative = left on screen) so the flank clears the Jam widget. */
 export const PORTAL_ROW_OFFSET_X = -5;
-/** Extra +X on the Pieter torus only (pushes it further right vs the shader row). */
-export const PORTAL_PIETER_TORUS_EXTRA_X = 12;
+/** Spawn X/Z — same X as the portal hallway midline so the player starts centered in the corridor. */
+export const PLAYER_SPAWN_X = PORTAL_ROW_OFFSET_X;
+export const PLAYER_SPAWN_Z = 0;
 /**
  * Horizontal (XZ) distance: show “Entering…” when this close on the ground plane.
  * (Portal groups sit above the player in Y — 3D distance would ignore these knobs.)
@@ -48,8 +57,6 @@ export const PORTAL_ENTER_DIST = 1.5;
 export const PORTAL_CUSTOM_REF_ENTER_DIST = 1.5;
 /** World Y for portal groups; slightly raised so rings sit above shoulder height after mesh offset × scale. */
 export const PORTAL_PIETER_ELEVATION_Y = 4.9;
-/** Used for the custom return portal (?portal) — right flank X (see PORTAL_ROW_OFFSET_X). */
-export const PORTAL_PIETER_X = 18;
 
 // -- Renderer --
 export const MAX_PIXEL_RATIO = 2;

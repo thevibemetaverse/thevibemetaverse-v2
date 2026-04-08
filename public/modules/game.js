@@ -44,6 +44,7 @@ export function init() {
   initDevTools();
 
   window.addEventListener('resize', onResize);
+  updateCamera();
   animate();
 }
 

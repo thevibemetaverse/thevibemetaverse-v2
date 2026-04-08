@@ -17,7 +17,7 @@ export const MODEL_PLACEMENTS = [
   {
     name: 'bbq-sauce',
     path: 'assets/models/sweet_baby_rays_bbq_sauce.glb',
-    position: [10, 5, -35],
+    position: [28, 5, -35],
     rotation: [0, 0, 0],
     scale: 5,
   },
