@@ -369,24 +369,50 @@ function copyInviteLink() {
 let copyLinkContainer = null;
 
 function showCopyLinkUI() {
+  const roomCode = state.currentRoom;
+  const inviteUrl = `${window.location.origin}/room/${encodeURIComponent(roomCode)}`;
+
   if (copyLinkContainer) {
+    // Update with new room code
+    const codeEl = copyLinkContainer.querySelector('[data-role="code"]');
+    const urlEl = copyLinkContainer.querySelector('[data-role="url"]');
+    if (codeEl) codeEl.textContent = roomCode;
+    if (urlEl) urlEl.textContent = inviteUrl;
     copyLinkContainer.style.display = 'flex';
     return;
   }
+
   copyLinkContainer = document.createElement('div');
   copyLinkContainer.style.cssText = `
     position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-    z-index: 20; display: flex; align-items: center; gap: 10px;
-    padding: 12px 20px;
+    z-index: 20; display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 16px 24px;
     background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.25);
     border-radius: 12px; backdrop-filter: blur(10px);
     font-family: 'Courier New', monospace; color: #fff;
   `;
 
+  const label = document.createElement('div');
+  label.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.1em;';
+  label.textContent = 'Room Code';
+  copyLinkContainer.appendChild(label);
+
+  const codeEl = document.createElement('div');
+  codeEl.setAttribute('data-role', 'code');
+  codeEl.style.cssText = 'font-size: 18px; font-weight: 700; color: #00ff88; letter-spacing: 0.05em;';
+  codeEl.textContent = roomCode;
+  copyLinkContainer.appendChild(codeEl);
+
+  const urlEl = document.createElement('div');
+  urlEl.setAttribute('data-role', 'url');
+  urlEl.style.cssText = 'font-size: 11px; color: rgba(255,255,255,0.5); max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
+  urlEl.textContent = inviteUrl;
+  copyLinkContainer.appendChild(urlEl);
+
   const btn = document.createElement('button');
   btn.textContent = 'Copy Invite Link';
   btn.style.cssText = `
-    padding: 8px 20px; font-family: 'Courier New', monospace; font-size: 14px;
+    margin-top: 4px; padding: 8px 20px; font-family: 'Courier New', monospace; font-size: 14px;
     color: #fff; background: rgba(255, 255, 255, 0.12);
     border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 8px;
     cursor: pointer; transition: background 0.15s;
