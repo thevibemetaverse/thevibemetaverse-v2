@@ -230,8 +230,18 @@ export function updatePortals() {
   }
 
   // Update portal info sprites from room countdown data
-  for (const [roomId, info] of portalInfoSprites) {
-    const roomData = state.roomCountdowns.get(roomId);
+  // Sprite keys are portal slugs (e.g. "portal-network") but roomCountdowns
+  // uses unique IDs with a random suffix (e.g. "portal-network-g8s2aa").
+  // Match by prefix to find the active room for each portal.
+  for (const [slug, info] of portalInfoSprites) {
+    let roomData = null;
+    for (const [roomId, data] of state.roomCountdowns) {
+      if (roomId === slug || roomId.startsWith(slug + '-')) {
+        if (!roomData || data.playerCount > roomData.playerCount) {
+          roomData = data;
+        }
+      }
+    }
     let text;
     if (roomData && roomData.playerCount > 0) {
       const m = Math.floor(roomData.countdown / 60);

@@ -61,6 +61,12 @@ export function init() {
   state.scene.add(state.lobbyGroup);
 
   initMeetingRoom();
+
+  // If navigated directly to a room URL, hide lobby before first frame renders
+  if (state._pendingDirectRoomId) {
+    state.lobbyGroup.visible = false;
+  }
+
   initMultiplayer();
 
   window.addEventListener('resize', onResize);
