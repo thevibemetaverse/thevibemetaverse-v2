@@ -1,0 +1,21 @@
+# CloudFormation Git sync stack deployment file.
+# Deploy the stack in us-east-2 (Git sync / console region).
+# The template creates its own VPC (10.42.0.0/16) and one public subnet (10.42.1.0/24) in the first AZ of the region.
+# Fargate CPU/memory must be a valid pair (e.g. 256+512). Docker Hub secret: JSON username/password (or docker_* keys).
+# Elastic IP allocation must be in us-east-2 and unassociated when the stack creates the NLB.
+# DesiredCount 0 skips running tasks until ECR has an image; after the first successful pipeline run, set DesiredCount to 1 (Git commit).
+# After the first successful pipeline deploy, the ECS task definition revision may drift from this template; that is expected.
+
+template-file-path: ci/cfn/ecs-pipeline.yaml
+parameters:
+  CodeStarConnectionArn: arn:aws:codeconnections:us-east-2:034475640037:connection/706b2ca7-2b64-4b8c-8b61-9f21808f49bc
+  GitHubOwner: thevibemetaverse
+  GitHubRepo: thevibemetaverse-v2
+  DockerHubSecretArn: arn:aws:secretsmanager:us-east-2:034475640037:secret:dockerhub-WqUKEg
+  TaskCpu: '256'
+  TaskMemory: '512'
+  AcmCertificateArn: arn:aws:acm:us-east-2:034475640037:certificate/19e5c5f9-bf8b-4a00-9ee6-e91746b68050
+  ElasticIpAllocationId: eipalloc-0e64e1670db16daf9
+  DesiredCount: 0
+tags:
+  Project: the-vibe-metaverse-v2
