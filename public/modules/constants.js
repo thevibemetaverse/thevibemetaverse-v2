@@ -86,6 +86,20 @@ export const HEMI_INTENSITY = 0.65;
 export const SHADOW_RADIUS = 4;
 export const SHADOW_NORMAL_BIAS = 0.02;
 
+// -- Meeting Room --
+export const MEETING_ROOM_MODEL_PATH = 'assets/models/meeting_room.glb';
+export const MEETING_ROOM_COUNTDOWN_SECONDS = 60;
+/** XZ distance to exit door trigger. */
+export const MEETING_ROOM_EXIT_DIST = 3;
+/** Player spawn position inside the meeting room. */
+export const MEETING_ROOM_PLAYER_SPAWN = { x: 5, y: 0, z: 7 };
+/** Exit door position inside the meeting room (adjust after inspecting GLB). */
+export const MEETING_ROOM_EXIT_POSITION = { x: 0, y: 0, z: -25 };
+/** Camera orbit distance when inside a meeting room. */
+export const ROOM_CAMERA_ORBIT_DISTANCE = 20;
+/** Camera orbit height when inside a meeting room. */
+export const ROOM_CAMERA_ORBIT_HEIGHT = 10;
+
 // -- Animation --
 export const MAX_DELTA = 0.1;               // clamp frame delta to prevent physics jumps
 

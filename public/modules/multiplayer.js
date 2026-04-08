@@ -14,6 +14,7 @@ import {
   setMovingAnimationForContext,
 } from './character.js';
 import { createNametagSprite, updateNametagText } from './nametag.js';
+import { setRoomWebSocket, enterRoom } from './meeting-room.js';
 
 /** @type {WebSocket | null} */
 let ws = null;
@@ -130,6 +131,30 @@ function handleMessage(raw) {
           ensureRemotePlayer(p.id, p.avatarUrl, p.name || DEFAULT_PLAYER_NAME);
         }
       }
+      // Populate initial room countdowns from welcome
+      if (Array.isArray(msg.rooms)) {
+        for (const r of msg.rooms) {
+          if (r.roomId) {
+            state.roomCountdowns.set(r.roomId, {
+              countdown: r.countdown ?? 60,
+              playerCount: r.playerCount ?? 0,
+            });
+          }
+        }
+      }
+      // Handle direct room link or reconnect into room
+      if (state._pendingDirectRoomId) {
+        const roomId = state._pendingDirectRoomId;
+        state._pendingDirectRoomId = null;
+        enterRoom(roomId, '');
+      } else if (state.currentRoom !== 'lobby') {
+        // Reconnect — re-join the room we were in
+        const roomId = state.currentRoom;
+        const gameUrl = state.currentRoomGameUrl;
+        state.currentRoom = 'lobby'; // reset so enterRoom works
+        state.gameState = 'EXPLORING';
+        enterRoom(roomId, gameUrl);
+      }
       break;
     }
     case 'player_joined': {
@@ -183,6 +208,55 @@ function handleMessage(raw) {
       }
       break;
     }
+    case 'room_info': {
+      // Update room countdown info for portal display
+      if (Array.isArray(msg.rooms)) {
+        state.roomCountdowns.clear();
+        for (const r of msg.rooms) {
+          if (r.roomId) {
+            state.roomCountdowns.set(r.roomId, {
+              countdown: r.countdown ?? 60,
+              playerCount: r.playerCount ?? 0,
+            });
+          }
+        }
+      }
+      break;
+    }
+    case 'room_welcome': {
+      // Response to join_room — populate room player list
+      if (Array.isArray(msg.players)) {
+        for (const p of msg.players) {
+          if (p?.id && p.id !== state.localPlayerId) {
+            ensureRemotePlayer(p.id, p.avatarUrl || '', p.name || DEFAULT_PLAYER_NAME);
+          }
+        }
+      }
+      state.roomCountdown = typeof msg.countdown === 'number' ? msg.countdown : 60;
+      state.roomPlayers = Array.isArray(msg.players) ? msg.players : [];
+      break;
+    }
+    case 'room_state': {
+      // Periodic countdown update from server — update both portal info and current room
+      if (msg.roomId) {
+        state.roomCountdowns.set(msg.roomId, {
+          countdown: msg.countdown ?? 60,
+          playerCount: msg.playerCount ?? 0,
+        });
+      }
+      if (msg.roomId === state.currentRoom) {
+        state.roomCountdown = typeof msg.countdown === 'number' ? msg.countdown : null;
+        state.roomPlayers = Array.isArray(msg.players) ? msg.players : [];
+      }
+      break;
+    }
+    case 'room_launch': {
+      // Game countdown hit zero — open game in new tab
+      if (msg.gameUrl) {
+        window.open(msg.gameUrl, '_blank');
+      }
+      break;
+    }
     default:
       break;
   }
@@ -230,6 +304,7 @@ function connect() {
   }
 
   ws.onopen = () => {
+    setRoomWebSocket(ws);
     ws.send(
       JSON.stringify({
         type: 'hello',
@@ -253,6 +328,7 @@ function connect() {
       pingInterval = null;
     }
     ws = null;
+    setRoomWebSocket(null);
     state.localPlayerId = null;
     clearAllRemotes();
     scheduleReconnect();

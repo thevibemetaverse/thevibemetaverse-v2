@@ -3,7 +3,13 @@ import * as THREE from 'three';
 import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from './constants.js';
 
 /**
- * @typedef {'EXPLORING' | 'PROMPTING'} GameState
+ * @typedef {'EXPLORING' | 'PROMPTING' | 'IN_ROOM'} GameState
+ */
+
+/**
+ * @typedef {Object} RoomCountdownInfo
+ * @property {number} countdown
+ * @property {number} playerCount
  */
 
 /**
@@ -62,6 +68,14 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from 
  *
  * @property {Map<string, RemotePlayerRecord>} remotePlayers - Other clients (id → record).
  *
+ * @property {string} currentRoom - 'lobby' or a room ID.
+ * @property {string} currentRoomGameUrl - Game URL for the current meeting room.
+ * @property {THREE.Group | null} lobbyGroup - Container for all lobby objects.
+ * @property {THREE.Group | null} meetingRoomGroup - Container for meeting room objects.
+ * @property {Map<string, RoomCountdownInfo>} roomCountdowns - Per-room countdown info for portal display.
+ * @property {Array<{id: string, name: string}>} roomPlayers - Players in the current room.
+ * @property {number | null} roomCountdown - Countdown seconds for current room.
+ *
  * @property {DomRefs} dom
  */
 
@@ -100,6 +114,18 @@ export const state = {
   localPlayerMoving: false,
   localPlayerName: DEFAULT_PLAYER_NAME,
   remotePlayers: new Map(),
+
+  // Rooms
+  currentRoom: 'lobby',
+  currentRoomGameUrl: '',
+  lobbyGroup: null,
+  meetingRoomGroup: null,
+  roomCountdowns: new Map(),
+  roomPlayers: [],
+  roomCountdown: null,
+
+  /** @type {string | null} */
+  _pendingDirectRoomId: null,
 
   // DOM refs (populated in init)
   dom: { errorToast: null },

@@ -297,3 +297,64 @@ canvas { display: block; touch-action: none; }
 #dev-tools-slot .settings-panel__row {
   padding: 4px 14px;
 }
+
+/* Room overlay */
+.room-overlay {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 20px 32px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  pointer-events: auto;
+}
+.room-overlay.hidden { display: none; }
+.room-overlay__countdown {
+  font-size: 56px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #00ff88;
+  text-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+  line-height: 1;
+}
+.room-overlay__label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.room-overlay__players {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 4px;
+}
+.room-overlay__btn {
+  margin-top: 8px;
+  padding: 8px 20px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.room-overlay__btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+.room-overlay__hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-top: 4px;
+}

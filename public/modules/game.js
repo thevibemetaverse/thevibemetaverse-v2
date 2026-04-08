@@ -18,6 +18,7 @@ import { initDevTools } from './dev-tools.js';
 import { initClouds, updateClouds } from './clouds.js';
 import { initMultiplayer, updateMultiplayer, notifyLocalNameChanged } from './multiplayer.js';
 import { initNametag } from './nametag.js';
+import { initMeetingRoom, updateMeetingRoom } from './meeting-room.js';
 
 export function init() {
   // Populate DOM refs
@@ -45,6 +46,21 @@ export function init() {
   initModels();
   initSettings();
   initDevTools();
+
+  // Reparent all lobby objects into a group so we can hide/show them
+  state.lobbyGroup = new THREE.Group();
+  const sceneChildren = [...state.scene.children];
+  for (const child of sceneChildren) {
+    // Keep camera, lights, and player at scene root — they persist across rooms
+    if (child === state.camera) continue;
+    if (child.isLight) continue;
+    if (child === state.player) continue;
+    state.scene.remove(child);
+    state.lobbyGroup.add(child);
+  }
+  state.scene.add(state.lobbyGroup);
+
+  initMeetingRoom();
   initMultiplayer();
 
   window.addEventListener('resize', onResize);
@@ -56,10 +72,14 @@ function animate() {
   const delta = Math.min(state.clock.getDelta(), MAX_DELTA);
   updatePlayer(delta);
   updateMultiplayer(delta);
-  updateGrass();
-  updateTrees();
-  updateClouds(delta);
-  updatePortals();
+  if (state.currentRoom === 'lobby') {
+    updateGrass();
+    updateTrees();
+    updateClouds(delta);
+    updatePortals();
+  } else {
+    updateMeetingRoom(delta);
+  }
   updateCamera();
   if (state.animationMixer) state.animationMixer.update(delta);
   updateSettings();

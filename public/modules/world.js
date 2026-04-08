@@ -276,14 +276,14 @@ function createTrees() {
         const merged = mergeGeometries(barkGeoms, false);
         const mesh = new THREE.Mesh(merged, barkMat);
         mesh.castShadow = true;
-        state.scene.add(mesh);
+        (state.lobbyGroup || state.scene).add(mesh);
         barkGeoms.forEach((g) => g.dispose());
       }
       if (leafGeoms.length) {
         const merged = mergeGeometries(leafGeoms, false);
         const mesh = new THREE.Mesh(merged, leafMaterial);
         mesh.castShadow = true;
-        state.scene.add(mesh);
+        (state.lobbyGroup || state.scene).add(mesh);
         leafGeoms.forEach((g) => g.dispose());
       }
     }

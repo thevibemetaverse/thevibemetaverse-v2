@@ -11,7 +11,7 @@ export function createPlayer() {
 
 export function updatePlayer(delta) {
   if (!state.player) return;
-  if (state.gameState !== 'EXPLORING') return;
+  if (state.gameState !== 'EXPLORING' && state.gameState !== 'IN_ROOM') return;
 
   const speed = PLAYER_MOVE_SPEED * delta;
   const forward = new THREE.Vector3(

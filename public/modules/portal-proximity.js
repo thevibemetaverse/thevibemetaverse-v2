@@ -6,6 +6,7 @@ import {
   PORTAL_CUSTOM_REF_ENTER_DIST,
   PLAYER_MOVE_SPEED,
 } from './constants.js';
+import { enterRoom } from './meeting-room.js';
 
 const PIETER_PORTAL_URL = 'https://portal.pieter.com';
 
@@ -38,26 +39,7 @@ function ensurePrompt() {
   document.body.appendChild(promptEl);
 }
 
-function navigateToRefPortal() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const refUrl = urlParams.get('ref');
-  if (!refUrl) return;
-  let url = refUrl;
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
-  }
-  const newParams = new URLSearchParams();
-  for (const [key, value] of urlParams) {
-    if (key !== 'ref') {
-      newParams.append(key, value);
-    }
-  }
-  const paramString = newParams.toString();
-  navigating = true;
-  window.location.href = url + (paramString ? '?' + paramString : '');
-}
-
-function navigateToPieterPortal() {
+function buildPieterPortalUrl() {
   const currentParams = new URLSearchParams(window.location.search);
   const newParams = new URLSearchParams();
   newParams.append('portal', 'true');
@@ -72,20 +54,7 @@ function navigateToPieterPortal() {
     document.title || document.location.hostname || 'The Vibe Metaverse'
   );
   const paramString = newParams.toString();
-  navigating = true;
-  window.location.href = PIETER_PORTAL_URL + (paramString ? '?' + paramString : '');
-}
-
-function navigateToRegistryPortal(portal) {
-  const params = new URLSearchParams(window.location.search);
-  const username = params.get('username');
-  const avatar = params.get('avatar_url');
-
-  window.location.href = buildPortalUrl(portal.data, {
-    username: username || undefined,
-    avatarUrl: avatar || undefined,
-    fromPortal: document.title || undefined,
-  });
+  return PIETER_PORTAL_URL + (paramString ? '?' + paramString : '');
 }
 
 /**
@@ -147,30 +116,44 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
   if (best?.kind === 'ref' && !navigating) {
     ensurePrompt();
     promptEl.textContent = fromPortalName
-      ? `Returning to ${fromPortalName}…`
-      : 'Entering portal…';
+      ? `Entering ${fromPortalName} room…`
+      : 'Entering meeting room…';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
-      navigateToRefPortal();
+      navigating = true;
+      const roomId = 'ref-' + (fromPortalName || 'return').replace(/\s+/g, '-').toLowerCase();
+      if (promptEl) promptEl.style.display = 'none';
+      enterRoom(roomId, refUrl.startsWith('http') ? refUrl : 'https://' + refUrl);
+      navigating = false;
     }
   } else if (best?.kind === 'pieter' && !navigating) {
     ensurePrompt();
-    promptEl.textContent = 'Entering Vibeverse portal...';
+    promptEl.textContent = 'Entering Vibeverse room...';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
-      navigateToPieterPortal();
+      navigating = true;
+      if (promptEl) promptEl.style.display = 'none';
+      const pieterUrl = buildPieterPortalUrl();
+      enterRoom('vibeverse-portal', pieterUrl);
+      navigating = false;
     }
   } else if (best?.kind === 'registry' && best.portal && !navigating) {
+    const portalTitle = best.portal.data.title || best.portal.data.slug;
     ensurePrompt();
-    promptEl.textContent =
-      'Entering ' + (best.portal.data.title || best.portal.data.slug) + '...';
+    promptEl.textContent = 'Entering ' + portalTitle + ' room...';
     promptEl.style.display = 'block';
 
     if (best.dist < PORTAL_ENTER_DIST) {
       navigating = true;
-      promptEl.textContent =
-        'Entering ' + (best.portal.data.title || best.portal.data.slug) + '...';
-      navigateToRegistryPortal(best.portal);
+      const gameUrl = buildPortalUrl(best.portal.data, {
+        username: urlParams.get('username') || undefined,
+        avatarUrl: urlParams.get('avatar_url') || undefined,
+        fromPortal: document.title || undefined,
+      });
+      if (promptEl) promptEl.style.display = 'none';
+      const roomId = best.portal.data.slug || portalTitle.replace(/\s+/g, '-').toLowerCase();
+      enterRoom(roomId, gameUrl);
+      navigating = false;
     }
   } else if (promptEl) {
     promptEl.style.display = 'none';
