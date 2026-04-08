@@ -100,7 +100,7 @@ function ensureRemotePlayer(id, avatarUrl, name = DEFAULT_PLAYER_NAME) {
       const current = state.remotePlayers.get(id);
       if (!current || current.avatarUrl !== avatarUrl) return;
       if (current.modelRoot) return;
-      const v = buildPlayerVisualFromGltf(current.group, gltf);
+      const v = buildPlayerVisualFromGltf(current.group, gltf, path);
       current.modelRoot = v.modelRoot;
       current.animationMixer = v.animationMixer;
       current.idleAnimAction = v.idleAnimAction;

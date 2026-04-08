@@ -12,6 +12,9 @@ export const PLAYER_SPAWN_Z = 100;
 export const PLAYER_WORLD_LIMIT = 300;      // clamp position to ±limit
 export const PLAYER_TARGET_HEIGHT = 10.0;   // avatar scale target (units)
 export const ANIMATION_CROSSFADE = 0.25;    // seconds for idle↔run blend
+/** Hare GLB walk/idle clips are authored slow vs. PLAYER_MOVE_SPEED; scale playback so legs match travel. */
+export const AVATAR_HARE_IDLE_TIME_SCALE = 1.2;
+export const AVATAR_HARE_LOCOMOTION_TIME_SCALE = 1.2;
 
 export const DEFAULT_PLAYER_NAME = 'metaverse-explorer';
 
