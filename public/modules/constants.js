@@ -11,7 +11,14 @@ export const PLAYER_MOVE_SPEED = 32;        // units per second
 export const PLAYER_SPAWN_Z = 100;
 export const PLAYER_WORLD_LIMIT = 300;      // clamp position to ±limit
 export const PLAYER_TARGET_HEIGHT = 10.0;   // avatar scale target (units)
-export const ANIMATION_CROSSFADE = 0.25;    // seconds for idle↔run blend
+/**
+ * Per-avatar animation time scale overrides. Keys are model paths (must match the
+ * paths used in character.js). Avatars not listed here default to timeScale 1.
+ * @type {Record<string, { idle?: number, locomotion?: number }>}
+ */
+export const AVATAR_ANIM_OVERRIDES = {
+  'assets/models/hare_animated.glb': { idle: 1.2, locomotion: 1.2 },
+};
 
 export const DEFAULT_PLAYER_NAME = 'metaverse-explorer';
 

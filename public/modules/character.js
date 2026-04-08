@@ -1,9 +1,14 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './loader.js';
 import { state } from './state.js';
-import { PLAYER_TARGET_HEIGHT, ANIMATION_CROSSFADE } from './constants.js';
+import {
+  AVATAR_ANIM_OVERRIDES,
+  PLAYER_TARGET_HEIGHT,
+} from './constants.js';
 
 export const BUNDLED_METAVERSE_EXPLORER = 'assets/models/metaverse-explorer.glb';
+export const BUNDLED_ROBOT = 'assets/models/animated_humanoid_robot.glb';
+export const BUNDLED_HARE = 'assets/models/hare_animated.glb';
 export const SAMPLE_FOX_GLB =
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Fox/glTF-Binary/Fox.glb';
 export const SAMPLE_DUCK_GLB =
@@ -44,30 +49,52 @@ function resetSkinnedMeshesToBindPose(root) {
   });
 }
 
+function clipName(c) {
+  return typeof c.name === 'string' ? c.name.trim() : '';
+}
+
 function pickIdleAndRunClips(animations) {
   if (!animations.length) return { idle: null, run: null };
+  /** Locomotion when moving: prefer explicit run over walk (hare walk looks bad). */
   const run =
-    animations.find((c) => /run|sprint|jog/i.test(c.name)) ||
-    animations.find((c) => /walk/i.test(c.name));
+    animations.find((c) => /(^|[\s|_-])(run|sprint|jog)([\s|_-]|$)/i.test(clipName(c))) ||
+    animations.find((c) => /run|sprint|jog/i.test(clipName(c))) ||
+    animations.find((c) => /walk/i.test(clipName(c)));
   const idle = animations.find((c) =>
-    /idle|stand|breath|t-?pose/i.test(c.name)
+    /idle|stand|breath|t-?pose/i.test(clipName(c))
   );
   if (idle && run) return { idle, run };
   if (animations.length >= 2) {
     return { idle: animations[0], run: animations[1] };
   }
   const only = animations[0];
-  if (/idle|stand|breath/i.test(only.name)) {
+  if (/idle|stand|breath/i.test(clipName(only))) {
     return { idle: only, run: null };
   }
   return { idle: null, run: only };
 }
 
 /**
+ * @param {string} modelPath
+ * @param {THREE.AnimationAction | null} idleAnimAction
+ * @param {THREE.AnimationAction | null} runAnimAction
+ */
+function applyAvatarAnimationTimeScale(
+  modelPath,
+  idleAnimAction,
+  runAnimAction
+) {
+  const overrides = AVATAR_ANIM_OVERRIDES[modelPath];
+  if (idleAnimAction) idleAnimAction.timeScale = overrides?.idle ?? 1;
+  if (runAnimAction) runAnimAction.timeScale = overrides?.locomotion ?? 1;
+}
+
+/**
  * @param {THREE.Object3D} modelRoot
  * @param {import('three/examples/jsm/loaders/GLTFLoader.js').GLTF} gltf
+ * @param {string} [modelPath] — used for per-avatar animation tuning (e.g. hare walk speed)
  */
-function setupCharacterAnimationsOnModel(modelRoot, gltf) {
+function setupCharacterAnimationsOnModel(modelRoot, gltf, modelPath = '') {
   const clips = gltf.animations;
   if (!clips.length) {
     return {
@@ -93,11 +120,14 @@ function setupCharacterAnimationsOnModel(modelRoot, gltf) {
     idleAnimAction.play();
     runAnimAction.play();
     runAnimAction.setEffectiveWeight(0);
+    applyAvatarAnimationTimeScale(modelPath, idleAnimAction, runAnimAction);
   } else if (runAnimAction && !idleAnimAction) {
     runAnimAction.stop();
     resetSkinnedMeshesToBindPose(modelRoot);
+    applyAvatarAnimationTimeScale(modelPath, null, runAnimAction);
   } else if (idleAnimAction) {
     idleAnimAction.play();
+    applyAvatarAnimationTimeScale(modelPath, idleAnimAction, null);
   }
 
   return {
@@ -112,8 +142,9 @@ function setupCharacterAnimationsOnModel(modelRoot, gltf) {
  * Attach scaled avatar mesh and animations under parentGroup (e.g. local player or remote root).
  * @param {THREE.Group} parentGroup
  * @param {import('three/examples/jsm/loaders/GLTFLoader.js').GLTF} gltf
+ * @param {string} [modelPath]
  */
-export function buildPlayerVisualFromGltf(parentGroup, gltf) {
+export function buildPlayerVisualFromGltf(parentGroup, gltf, modelPath = '') {
   const modelRoot = gltf.scene;
   modelRoot.traverse((child) => {
     if (child.isMesh) {
@@ -135,7 +166,7 @@ export function buildPlayerVisualFromGltf(parentGroup, gltf) {
 
   parentGroup.add(modelRoot);
 
-  const anim = setupCharacterAnimationsOnModel(modelRoot, gltf);
+  const anim = setupCharacterAnimationsOnModel(modelRoot, gltf, modelPath);
   return {
     modelRoot,
     animationMixer: anim.animationMixer,
@@ -145,8 +176,8 @@ export function buildPlayerVisualFromGltf(parentGroup, gltf) {
   };
 }
 
-function applyLoadedGltf(gltf) {
-  const v = buildPlayerVisualFromGltf(state.player, gltf);
+function applyLoadedGltf(gltf, /** @type {string} */ modelPath) {
+  const v = buildPlayerVisualFromGltf(state.player, gltf, modelPath);
   state.playerModel = v.modelRoot;
   state.animationMixer = v.animationMixer;
   state.idleAnimAction = v.idleAnimAction;
@@ -155,11 +186,12 @@ function applyLoadedGltf(gltf) {
 }
 
 export function loadPlayerModelFromUrl(modelPath) {
-  disposeCurrentPlayerModel();
-  const loader = new GLTFLoader();
-  loader.load(
+  gltfLoader.load(
     modelPath,
-    (gltf) => applyLoadedGltf(gltf),
+    (gltf) => {
+      disposeCurrentPlayerModel();
+      applyLoadedGltf(gltf, modelPath);
+    },
     undefined,
     (err) => {
       console.error('Failed to load character model:', err);
@@ -188,7 +220,7 @@ export function setPlayerAvatarUrl(urlOrNull) {
   queueMicrotask(() =>
     import('./multiplayer.js')
       .then((m) => m.notifyLocalAvatarChanged())
-      .catch(() => {})
+      .catch((e) => console.warn('avatar notify failed:', e))
   );
 }
 
@@ -207,11 +239,20 @@ export function setMovingAnimationForContext(ctx, isMoving) {
 
   if (ctx.idleAnimAction && ctx.runAnimAction) {
     if (ctx.lastMovingState === isMoving) return;
-    const fade = ANIMATION_CROSSFADE;
+    /**
+     * Use explicit weights instead of crossFadeTo: after a fade-out, Three.js sets
+     * the idle action to enabled=false; fade-in on a disabled action never raises
+     * weight (_updateWeight bails), so later idle↔locomotion blends can break.
+     * Keeping both actions enabled and only varying effectiveWeight avoids that.
+     */
+    ctx.idleAnimAction.enabled = true;
+    ctx.runAnimAction.enabled = true;
     if (isMoving) {
-      ctx.idleAnimAction.crossFadeTo(ctx.runAnimAction, fade, false);
+      ctx.idleAnimAction.setEffectiveWeight(0);
+      ctx.runAnimAction.setEffectiveWeight(1);
     } else {
-      ctx.runAnimAction.crossFadeTo(ctx.idleAnimAction, fade, false);
+      ctx.idleAnimAction.setEffectiveWeight(1);
+      ctx.runAnimAction.setEffectiveWeight(0);
     }
     ctx.lastMovingState = isMoving;
     return;
@@ -236,6 +277,7 @@ export function setMovingAnimationForContext(ctx, isMoving) {
 }
 
 export function setMovingAnimation(isMoving) {
+  if (!state.animationMixer || state.lastMovingState === isMoving) return;
   const ctx = {
     animationMixer: state.animationMixer,
     idleAnimAction: state.idleAnimAction,

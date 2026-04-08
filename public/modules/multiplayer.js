@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { gltfLoader } from './loader.js';
 import { state } from './state.js';
 import {
   MULTIPLAYER_SEND_INTERVAL_MS,
@@ -93,14 +93,13 @@ function ensureRemotePlayer(id, avatarUrl, name = DEFAULT_PLAYER_NAME) {
   state.remotePlayers.set(id, record);
 
   const path = resolveAvatarModelPath(avatarUrl);
-  const loader = new GLTFLoader();
-  loader.load(
+  gltfLoader.load(
     path,
     (gltf) => {
       const current = state.remotePlayers.get(id);
       if (!current || current.avatarUrl !== avatarUrl) return;
       if (current.modelRoot) return;
-      const v = buildPlayerVisualFromGltf(current.group, gltf);
+      const v = buildPlayerVisualFromGltf(current.group, gltf, path);
       current.modelRoot = v.modelRoot;
       current.animationMixer = v.animationMixer;
       current.idleAnimAction = v.idleAnimAction;
