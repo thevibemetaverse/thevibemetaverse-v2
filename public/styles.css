@@ -49,10 +49,13 @@ canvas { display: block; touch-action: none; }
   backdrop-filter: blur(8px);
 }
 
+/* Mobile / narrow: pin below HUD so the stack doesn’t sit on the joystick or block the view */
 @media (max-width: 520px) {
   #avatar-picker {
     left: 12px;
     max-width: calc(100vw - 24px);
+    top: calc(56px + env(safe-area-inset-top, 0px));
+    transform: none;
   }
 }
 #avatar-picker button {
