@@ -6,6 +6,34 @@ const _raycaster = new THREE.Raycaster();
 const _origin = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
+const _invRig = new THREE.Matrix4();
+const _xrCtrlPose = new THREE.Matrix4();
+const _ctrlLocal = new THREE.Matrix4();
+
+/**
+ * Camera is parented to xrRig for locomotion, but WebXR writes controller matrices in
+ * unparented reference space. Reparent controllers to xrRig and convert each frame:
+ * local = inv(xrRigWorld) * xrPose.
+ */
+export function syncXrControllersToRig() {
+  const r = state.renderer;
+  if (!r?.xr?.isPresenting || !state.xrRig) return;
+
+  state.xrRig.updateMatrixWorld(true);
+  _invRig.copy(state.xrRig.matrixWorld).invert();
+
+  for (let i = 0; i < 2; i++) {
+    const c = r.xr.getController(i);
+    if (c.parent !== state.xrRig) {
+      if (c.parent) c.parent.remove(c);
+      state.xrRig.add(c);
+    }
+    _xrCtrlPose.copy(c.matrix);
+    _ctrlLocal.multiplyMatrices(_invRig, _xrCtrlPose);
+    c.matrix.copy(_ctrlLocal);
+    c.matrixWorldNeedsUpdate = true;
+  }
+}
 
 let xrControllersWired = false;
 let xrControllerVisualsWired = false;
@@ -242,8 +270,8 @@ function onVrSessionStart() {
     c1.addEventListener('select', onControllerSelect);
     xrControllersWired = true;
   }
-  state.scene.add(c0);
-  state.scene.add(c1);
+  state.xrRig.add(c0);
+  state.xrRig.add(c1);
 
   document.getElementById('mobile-controls')?.classList.remove('visible');
   setEnterVrButton('session', document.getElementById('enter-vr'));
@@ -268,9 +296,11 @@ function onVrSessionEnd() {
   }
 
   const r = state.renderer;
-  if (r && state.scene) {
-    state.scene.remove(r.xr.getController(0));
-    state.scene.remove(r.xr.getController(1));
+  if (r) {
+    const c0 = r.xr.getController(0);
+    const c1 = r.xr.getController(1);
+    if (c0.parent) c0.parent.remove(c0);
+    if (c1.parent) c1.parent.remove(c1);
   }
 
   syncMobileControlsForWebXr();

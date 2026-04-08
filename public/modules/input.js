@@ -37,7 +37,8 @@ function clampStickLen(v) {
  */
 function isQuestLeftYPressed(gp) {
   const b = gp.buttons;
-  return !!(b && b[4]?.pressed);
+  if (!b?.length) return false;
+  return !!(b[5]?.pressed || b[4]?.pressed);
 }
 
 /**
@@ -115,6 +116,13 @@ function pollWebXrInput(xrFrame, renderer) {
   const session = renderer.xr.getSession();
   if (!session) return;
 
+  let yPressed = false;
+  for (const src of session.inputSources) {
+    const gp = src.gamepad;
+    if (!gp || src.handedness === 'right') continue;
+    if (isQuestLeftYPressed(gp)) yPressed = true;
+  }
+
   /** @type {XRInputSource[]} */
   const withGamepad = [];
   for (const src of session.inputSources) {
@@ -122,7 +130,6 @@ function pollWebXrInput(xrFrame, renderer) {
     if (gp && gp.axes && gp.axes.length >= 2) withGamepad.push(src);
   }
 
-  let yPressed = false;
   let lx = 0;
   let ly = 0;
   let rx = 0;
@@ -138,7 +145,6 @@ function pollWebXrInput(xrFrame, renderer) {
     if (src.handedness === 'left') {
       lx += dz.x;
       ly += dz.y;
-      if (isQuestLeftYPressed(gp)) yPressed = true;
     } else if (src.handedness === 'right') {
       rx += dz.x;
       ry += dz.y;
@@ -158,7 +164,6 @@ function pollWebXrInput(xrFrame, renderer) {
       const dz = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
       lx += dz.x;
       ly += dz.y;
-      if (isQuestLeftYPressed(gp)) yPressed = true;
     }
   }
   if (!hadRightHanded && ui < unknown.length) {
@@ -175,13 +180,82 @@ function pollWebXrInput(xrFrame, renderer) {
   state.controllerMove.z = ly;
   state.controllerLook.x = rx;
   state.controllerLook.z = ry;
+
+  const stickMag =
+    Math.abs(lx) +
+    Math.abs(ly) +
+    Math.abs(rx) +
+    Math.abs(ry);
+  if (stickMag < 1e-4) {
+    mergeNavigatorGamepadsIntoVrSticks();
+  }
+
   clampStickLen(state.controllerMove);
   clampStickLen(state.controllerLook);
+
+  if (!yPressed) {
+    yPressed = scanNavigatorGamepadsForVrY();
+  }
 
   if (yPressed && !state.prevVrYButton) {
     state.vrPov = state.vrPov === 'first' ? 'third' : 'first';
   }
   state.prevVrYButton = yPressed;
+}
+
+/** Quest often exposes sticks via `getGamepads()` even when XR `inputSource.gamepad` is empty. */
+function mergeNavigatorGamepadsIntoVrSticks() {
+  /** @type {Gamepad[]} */
+  const pads = [];
+  const list = navigator.getGamepads();
+  for (let i = 0; i < list.length; i++) {
+    const gp = list[i];
+    if (gp && gp.axes && gp.axes.length >= 2) pads.push(gp);
+  }
+  if (pads.length === 0) return;
+
+  for (let i = 0; i < pads.length; i++) {
+    const gp = pads[i];
+    if (gp.axes.length >= 4) {
+      const left = applyDeadzone(gp.axes[0] ?? 0, gp.axes[1] ?? 0);
+      const right = applyDeadzone(gp.axes[2] ?? 0, gp.axes[3] ?? 0);
+      state.controllerMove.x = left.x;
+      state.controllerMove.z = left.y;
+      state.controllerLook.x = right.x;
+      state.controllerLook.z = right.y;
+      return;
+    }
+  }
+
+  pads.sort(sortGamepadsByHand);
+
+  if (pads.length >= 2) {
+    const m = applyDeadzone(pads[0].axes[0] ?? 0, pads[0].axes[1] ?? 0);
+    const l = applyDeadzone(pads[1].axes[0] ?? 0, pads[1].axes[1] ?? 0);
+    state.controllerMove.x = m.x;
+    state.controllerMove.z = m.y;
+    state.controllerLook.x = l.x;
+    state.controllerLook.z = l.y;
+    return;
+  }
+
+  const m = applyDeadzone(pads[0].axes[0] ?? 0, pads[0].axes[1] ?? 0);
+  state.controllerMove.x = m.x;
+  state.controllerMove.z = m.y;
+}
+
+function scanNavigatorGamepadsForVrY() {
+  /** @type {Gamepad[]} */
+  const gps = [];
+  const list = navigator.getGamepads();
+  for (let i = 0; i < list.length; i++) {
+    const gp = list[i];
+    if (gp?.buttons?.length) gps.push(gp);
+  }
+  const candidates = gps.filter((g) => g.hand !== 'right');
+  if (candidates.length === 0) return false;
+  candidates.sort(sortGamepadsByHand);
+  return isQuestLeftYPressed(candidates[0]);
 }
 
 /**
