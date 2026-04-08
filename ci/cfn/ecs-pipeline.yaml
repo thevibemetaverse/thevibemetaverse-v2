@@ -346,6 +346,7 @@ Resources:
                   - secretsmanager:GetSecretValue
                 Resource: !Ref DockerHubSecretArn
 
+  # Buildspec lives at repo root (buildspec.yml); omitting Buildspec here avoids strict schema rejections (e.g. some Git sync validators).
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -353,7 +354,6 @@ Resources:
       ServiceRole: !GetAtt CodeBuildServiceRole.Arn
       Artifacts:
         Type: CODEPIPELINE
-      Buildspec: ci/buildspec.yml
       Environment:
         Type: LINUX_CONTAINER
         ComputeType: BUILD_GENERAL1_SMALL
