@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { state } from './state.js';
 import { setMovingAnimation } from './character.js';
-import { PLAYER_MOVE_SPEED, PLAYER_WORLD_LIMIT } from './constants.js';
+import { PLAYER_MOVE_SPEED, PLAYER_WORLD_LIMIT, PLAYER_SPAWN_Z } from './constants.js';
 
 export function createPlayer() {
   state.player = new THREE.Group();
+  state.player.position.set(0, 0, PLAYER_SPAWN_Z);
   state.scene.add(state.player);
 }
 

@@ -67,6 +67,10 @@ function navigateToPieterPortal() {
   for (const [key, value] of currentParams) {
     newParams.append(key, value);
   }
+  newParams.set(
+    'from_portal',
+    document.title || document.location.hostname || 'The Vibe Metaverse'
+  );
   const paramString = newParams.toString();
   navigating = true;
   window.location.href = PIETER_PORTAL_URL + (paramString ? '?' + paramString : '');
@@ -80,6 +84,7 @@ function navigateToRegistryPortal(portal) {
   window.location.href = buildPortalUrl(portal.data, {
     username: username || undefined,
     avatarUrl: avatar || undefined,
+    fromPortal: document.title || undefined,
   });
 }
 
@@ -119,7 +124,9 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
     }
   }
 
-  const refUrl = new URLSearchParams(window.location.search).get('ref');
+  const urlParams = new URLSearchParams(window.location.search);
+  const refUrl = urlParams.get('ref');
+  const fromPortalName = urlParams.get('from_portal');
   const candidates = [];
   if (customRefPortal && refUrl && refDist < PORTAL_PROXIMITY_DIST) {
     candidates.push({ kind: 'ref', dist: refDist });
@@ -139,7 +146,9 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
 
   if (best?.kind === 'ref' && !navigating) {
     ensurePrompt();
-    promptEl.textContent = 'Entering custom portal...';
+    promptEl.textContent = fromPortalName
+      ? `Returning to ${fromPortalName}…`
+      : 'Entering portal…';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
       navigateToRefPortal();
