@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import express from 'express';
-import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
@@ -70,13 +69,6 @@ app.get('/portals.json', async (req, res) => {
 
 app.use(express.static(join(__dirname, 'public')));
 app.use('/assets', express.static(join(__dirname, 'assets')));
-// Optional: serve a local portals clone for import-map overrides (see index.html comments).
-// Default: @vibe/portals loads from GitHub main via jsDelivr in the browser.
-const siblingPortals = join(__dirname, '..', 'portals');
-if (existsSync(siblingPortals)) {
-  app.use('/vendor/portals', express.static(siblingPortals));
-}
-app.use('/vendor/portals', express.static(join(__dirname, 'vendor', 'portals')));
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
