@@ -121,9 +121,7 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
 
   if (best?.kind === 'ref' && !navigating) {
     ensurePrompt();
-    promptEl.textContent = fromPortalName
-      ? `Entering ${fromPortalName} room…`
-      : 'Entering meeting room…';
+    promptEl.textContent = 'Entering meeting room…';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
       navigating = true;
@@ -134,7 +132,7 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
     }
   } else if (best?.kind === 'pieter' && !navigating) {
     ensurePrompt();
-    promptEl.textContent = 'Entering Vibeverse room...';
+    promptEl.textContent = 'Entering meeting room…';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
       navigating = true;
@@ -146,7 +144,7 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
   } else if (best?.kind === 'registry' && best.portal && !navigating) {
     const portalTitle = best.portal.data.title || best.portal.data.slug;
     ensurePrompt();
-    promptEl.textContent = 'Entering ' + portalTitle + ' room...';
+    promptEl.textContent = 'Entering meeting room…';
     promptEl.style.display = 'block';
 
     if (best.dist < PORTAL_ENTER_DIST) {
@@ -158,7 +156,7 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
       });
       if (promptEl) promptEl.style.display = 'none';
       const slug = best.portal.data.slug || portalTitle.replace(/\s+/g, '-').toLowerCase();
-      enterRoom(uniqueRoomId(slug), gameUrl);
+      enterRoom(uniqueRoomId(slug), gameUrl, portalTitle);
       navigating = false;
     }
   } else if (promptEl) {

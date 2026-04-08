@@ -256,9 +256,13 @@ function handleMessage(raw) {
       break;
     }
     case 'room_launch': {
-      // Game countdown hit zero — open game in new tab
+      // Game countdown hit zero — show "Meeting Started!" then open game
+      state.roomCountdown = 0;
       if (msg.gameUrl) {
-        window.open(msg.gameUrl, '_blank');
+        // Brief delay so players see the "Meeting Started!" screen
+        setTimeout(() => {
+          window.open(msg.gameUrl, '_blank');
+        }, 1500);
       }
       break;
     }

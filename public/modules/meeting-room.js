@@ -92,10 +92,10 @@ export function initMeetingRoom() {
   screenTexture = new THREE.CanvasTexture(screenCanvas);
   screenTexture.minFilter = THREE.LinearFilter;
 
-  const screenGeo = new THREE.PlaneGeometry(16, 8);
+  const screenGeo = new THREE.PlaneGeometry(22, 9);
   const screenMat = new THREE.MeshBasicMaterial({ map: screenTexture, side: THREE.DoubleSide });
   wallScreen = new THREE.Mesh(screenGeo, screenMat);
-  wallScreen.position.set(0, 14, -24);
+  wallScreen.position.set(0, 12.5, -24);
   roomGroup.add(wallScreen);
 
   // Recessed door cutout on the wall, to the right of the countdown screen
@@ -211,9 +211,9 @@ export function initMeetingRoom() {
 
       // If there was a pending join, execute it now
       if (pendingJoin) {
-        const { roomId, gameUrl } = pendingJoin;
+        const { roomId, gameUrl, gameTitle } = pendingJoin;
         pendingJoin = null;
-        enterRoom(roomId, gameUrl);
+        enterRoom(roomId, gameUrl, gameTitle);
       }
     },
     undefined,
@@ -235,16 +235,18 @@ export function initMeetingRoom() {
  * Enter a meeting room.
  * @param {string} roomId
  * @param {string} gameUrl
+ * @param {string} [gameTitle]
  */
-export function enterRoom(roomId, gameUrl) {
+export function enterRoom(roomId, gameUrl, gameTitle) {
   if (state.currentRoom !== 'lobby') return;
   if (!modelLoaded) {
-    pendingJoin = { roomId, gameUrl };
+    pendingJoin = { roomId, gameUrl, gameTitle };
     return;
   }
 
   state.currentRoom = roomId;
   state.currentRoomGameUrl = gameUrl;
+  state.currentRoomGameTitle = gameTitle || '';
   state.gameState = 'IN_ROOM';
 
   // Hide lobby, show room
@@ -274,7 +276,7 @@ export function enterRoom(roomId, gameUrl) {
 
   // Face the player toward the camera
   if (state.player) {
-    state.player.rotation.y = state.orbitAngle + Math.PI;
+    state.player.rotation.y = 0.4;
   }
 
   // Update browser URL to the room link
@@ -301,6 +303,7 @@ export function exitRoom() {
 
   state.currentRoom = 'lobby';
   state.currentRoomGameUrl = '';
+  state.currentRoomGameTitle = '';
   state.gameState = 'EXPLORING';
   state.roomPlayers = [];
   state.roomCountdown = null;
@@ -368,26 +371,11 @@ function renderScreen() {
   const w = screenCanvas.width;
   const h = screenCanvas.height;
 
-  // Background
-  ctx.fillStyle = '#111';
+  // Background — black to match the TV screen
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, w, h);
 
-  // Border
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, w - 4, h - 4);
-
-  // Countdown
   const secs = state.roomCountdown ?? 60;
-  const minutes = Math.floor(secs / 60);
-  const seconds = secs % 60;
-  const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
-
-  ctx.fillStyle = secs <= 10 ? '#ff4444' : '#00ff88';
-  ctx.font = 'bold 72px Courier New, monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(timeStr, w / 2, h / 3);
 
   // Player list
   const names = state.roomPlayers.map((p) => p.name);
@@ -395,20 +383,49 @@ function renderScreen() {
     names.unshift(state.localPlayerName);
   }
 
-  ctx.fillStyle = '#aaa';
-  ctx.font = '20px Courier New, monospace';
-  ctx.fillText(names.length + ' player' + (names.length !== 1 ? 's' : '') + ' in room', w / 2, h / 2 + 20);
+  // Resolve game title from portal registry data
+  const gameTitle = state.currentRoomGameTitle || state.currentRoom;
 
-  // Show up to 6 names
-  ctx.fillStyle = '#fff';
-  ctx.font = '16px Courier New, monospace';
-  const showNames = names.slice(0, 6);
-  for (let i = 0; i < showNames.length; i++) {
-    ctx.fillText(showNames[i], w / 2, h / 2 + 50 + i * 22);
-  }
-  if (names.length > 6) {
-    ctx.fillStyle = '#888';
-    ctx.fillText(`+${names.length - 6} more`, w / 2, h / 2 + 50 + 6 * 22);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Attendees line
+  const attendeesStr = names.length > 0 ? 'Attendees: ' + names.join(', ') : '';
+
+  if (secs <= 0) {
+    // Today's Agenda
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px Courier New, monospace';
+    ctx.fillText("Today's Agenda: Play " + gameTitle, w / 2, 40);
+
+    // Meeting Started!
+    ctx.fillStyle = '#00ff88';
+    ctx.font = 'bold 56px Courier New, monospace';
+    ctx.fillText('Meeting Started!', w / 2, 110);
+
+    // Attendees
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Courier New, monospace';
+    ctx.fillText(attendeesStr, w / 2, 175);
+  } else {
+    // Today's Agenda
+    ctx.fillStyle = '#aaa';
+    ctx.font = '18px Courier New, monospace';
+    ctx.fillText("Today's Agenda: Play " + gameTitle, w / 2, 40);
+
+    // Big countdown timer
+    const minutes = Math.floor(secs / 60);
+    const seconds = secs % 60;
+    const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
+
+    ctx.fillStyle = secs <= 10 ? '#ff4444' : '#00ff88';
+    ctx.font = 'bold 80px Courier New, monospace';
+    ctx.fillText(timeStr, w / 2, 115);
+
+    // Attendees
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Courier New, monospace';
+    ctx.fillText(attendeesStr, w / 2, 185);
   }
 
   screenTexture.needsUpdate = true;

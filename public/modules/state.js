@@ -70,6 +70,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from 
  *
  * @property {string} currentRoom - 'lobby' or a room ID.
  * @property {string} currentRoomGameUrl - Game URL for the current meeting room.
+ * @property {string} currentRoomGameTitle - Human-readable game title for the current room.
  * @property {THREE.Group | null} lobbyGroup - Container for all lobby objects.
  * @property {THREE.Group | null} meetingRoomGroup - Container for meeting room objects.
  * @property {Map<string, RoomCountdownInfo>} roomCountdowns - Per-room countdown info for portal display.
@@ -118,6 +119,7 @@ export const state = {
   // Rooms
   currentRoom: 'lobby',
   currentRoomGameUrl: '',
+  currentRoomGameTitle: '',
   lobbyGroup: null,
   meetingRoomGroup: null,
   roomCountdowns: new Map(),
