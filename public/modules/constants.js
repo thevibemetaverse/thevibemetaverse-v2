@@ -94,7 +94,7 @@ export const MEETING_ROOM_EXIT_DIST = 3;
 /** Player spawn position inside the meeting room. */
 export const MEETING_ROOM_PLAYER_SPAWN = { x: 13, y: 0, z: 7 };
 /** Exit door position inside the meeting room (adjust after inspecting GLB). */
-export const MEETING_ROOM_EXIT_POSITION = { x: 0, y: 0, z: -25 };
+export const MEETING_ROOM_EXIT_POSITION = { x: -28, y: 0, z: -31.2 };
 /** Camera orbit distance when inside a meeting room. */
 export const ROOM_CAMERA_ORBIT_DISTANCE = 20;
 /** Camera orbit height when inside a meeting room. */

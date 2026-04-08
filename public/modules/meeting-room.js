@@ -98,6 +98,71 @@ export function initMeetingRoom() {
   wallScreen.position.set(0, 14, -24);
   roomGroup.add(wallScreen);
 
+  // Recessed door cutout on the wall, to the right of the countdown screen
+  const doorW = 6;
+  const doorH = 12;
+  const doorDepth = 3;
+  const doorX = MEETING_ROOM_EXIT_POSITION.x;
+  const doorY = doorH / 2;
+  const doorZ = MEETING_ROOM_EXIT_POSITION.z;
+  const doorMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.BackSide });
+
+  const doorGroup = new THREE.Group();
+  doorGroup.position.set(doorX, doorY, doorZ);
+
+  // Back face (deepest part of the recess)
+  const backGeo = new THREE.PlaneGeometry(doorW, doorH);
+  const back = new THREE.Mesh(backGeo, doorMat);
+  back.position.z = -doorDepth;
+  doorGroup.add(back);
+
+  // Left wall
+  const sideGeo = new THREE.PlaneGeometry(doorDepth, doorH);
+  const left = new THREE.Mesh(sideGeo, doorMat);
+  left.position.set(-doorW / 2, 0, -doorDepth / 2);
+  left.rotation.y = Math.PI / 2;
+  doorGroup.add(left);
+
+  // Right wall
+  const right = new THREE.Mesh(sideGeo, doorMat);
+  right.position.set(doorW / 2, 0, -doorDepth / 2);
+  right.rotation.y = -Math.PI / 2;
+  doorGroup.add(right);
+
+  // Ceiling
+  const topGeo = new THREE.PlaneGeometry(doorW, doorDepth);
+  const top = new THREE.Mesh(topGeo, doorMat);
+  top.position.set(0, doorH / 2, -doorDepth / 2);
+  top.rotation.x = Math.PI / 2;
+  doorGroup.add(top);
+
+  // Front face (flush with wall, masks the wall surface)
+  const frontMat = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
+  const frontGeo = new THREE.PlaneGeometry(doorW, doorH);
+  const front = new THREE.Mesh(frontGeo, frontMat);
+  front.position.z = 0.05;
+  doorGroup.add(front);
+
+  // Load exit sign above the door
+  gltfLoader.load(
+    '/assets/models/exit_sing.glb',
+    (gltf) => {
+      const sign = gltf.scene;
+      const box = new THREE.Box3().setFromObject(sign);
+      const size = box.getSize(new THREE.Vector3());
+      const targetW = 4;
+      const scale = targetW / Math.max(size.x, 0.01);
+      sign.scale.setScalar(scale);
+      // Position above the door
+      sign.position.set(0, doorH / 2 + 0.5, -0.5);
+      doorGroup.add(sign);
+    },
+    undefined,
+    (err) => console.error('Failed to load exit sign:', err)
+  );
+
+  roomGroup.add(doorGroup);
+
   // Create exit door marker (visible guide)
   const exitMarkerGeo = new THREE.PlaneGeometry(6, 8);
   const exitMarkerMat = new THREE.MeshBasicMaterial({
