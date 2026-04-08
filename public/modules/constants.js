@@ -12,6 +12,8 @@ export const PLAYER_SPAWN_Z = 100;
 export const PLAYER_WORLD_LIMIT = 300;      // clamp position to ±limit
 export const PLAYER_TARGET_HEIGHT = 10.0;   // avatar scale target (units)
 export const ANIMATION_CROSSFADE = 0.25;    // seconds for idle↔run blend
+/** Keep "moving" true this many frames after input stops so idle/run crossfades are not thrashed. */
+export const MOVE_STICKY_FRAMES = 10;
 
 // -- Camera --
 export const CAMERA_FOV = 60;

@@ -1,21 +1,37 @@
-import { setPlayerAvatarUrl } from './character.js';
+import {
+  SAMPLE_HARE_GLB,
+  SAMPLE_ROBOT_GLB,
+  SAMPLE_TRICERATOPS_GLB,
+  setPlayerAvatarUrl,
+} from './character.js';
+
+/** `path: null` = bundled Metaverse Explorer (clears `avatar_url`). */
+const PICKER_ENTRIES = [
+  { key: 'explorer', path: null },
+  { key: 'triceratops', path: SAMPLE_TRICERATOPS_GLB },
+  { key: 'hare', path: SAMPLE_HARE_GLB },
+  { key: 'robot', path: SAMPLE_ROBOT_GLB },
+];
 
 function syncActiveButtons(container) {
-  const explorerBtn = container.querySelector('[data-avatar="explorer"]');
-  if (!explorerBtn) return;
-  const params = new URLSearchParams(window.location.search);
-  const hasAvatarUrl = Boolean(params.get('avatar_url'));
-  explorerBtn.classList.toggle('active', !hasAvatarUrl);
+  const avatarUrl = new URLSearchParams(window.location.search).get('avatar_url');
+  for (const { key, path } of PICKER_ENTRIES) {
+    const btn = container.querySelector(`[data-avatar="${key}"]`);
+    if (!btn) continue;
+    const active = path == null ? !avatarUrl : avatarUrl === path;
+    btn.classList.toggle('active', active);
+  }
 }
 
 export function initAvatarPicker() {
   const bar = document.getElementById('avatar-picker');
   if (!bar) return;
 
-  const explorer = bar.querySelector('[data-avatar="explorer"]');
-  if (explorer) {
-    explorer.addEventListener('click', () => {
-      setPlayerAvatarUrl(null);
+  for (const { key, path } of PICKER_ENTRIES) {
+    const btn = bar.querySelector(`[data-avatar="${key}"]`);
+    if (!btn) continue;
+    btn.addEventListener('click', () => {
+      setPlayerAvatarUrl(path);
       syncActiveButtons(bar);
     });
   }

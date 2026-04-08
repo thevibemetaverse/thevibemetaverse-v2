@@ -4,8 +4,9 @@ import { state } from './state.js';
 import { PLAYER_TARGET_HEIGHT, ANIMATION_CROSSFADE } from './constants.js';
 
 export const BUNDLED_METAVERSE_EXPLORER = 'assets/models/metaverse-explorer.glb';
-export const SAMPLE_FOX_GLB =
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Fox/glTF-Binary/Fox.glb';
+export const SAMPLE_TRICERATOPS_GLB = 'assets/models/triceratops_skeleton.glb';
+export const SAMPLE_HARE_GLB = 'assets/models/hare_animated.glb';
+export const SAMPLE_ROBOT_GLB = 'assets/models/animated_humanoid_robot.glb';
 export const SAMPLE_DUCK_GLB =
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Duck/glTF-Binary/Duck.glb';
 
@@ -73,11 +74,15 @@ export function loadPlayerModelFromUrl(modelPath) {
   );
 }
 
+/**
+ * Initial load: `avatar_url` from the query loads that model (portal handoff); otherwise load the
+ * bundled Metaverse Explorer so the scene has a visible character. Sidebar alternates (triceratops,
+ * hare, robot) still load only when selected.
+ */
 export function loadPlayerModel() {
-  const params = new URLSearchParams(window.location.search);
-  const avatarUrl = params.get('avatar_url');
-  const modelPath = avatarUrl || BUNDLED_METAVERSE_EXPLORER;
-  loadPlayerModelFromUrl(modelPath);
+  const raw = new URLSearchParams(window.location.search).get('avatar_url');
+  const avatarUrl = raw?.trim();
+  loadPlayerModelFromUrl(avatarUrl || BUNDLED_METAVERSE_EXPLORER);
 }
 
 export function replaceAvatarUrlInHistory(urlOrNull) {
@@ -104,8 +109,10 @@ function resetSkinnedMeshesToBindPose(root) {
 
 function pickIdleAndRunClips(animations) {
   if (!animations.length) return { idle: null, run: null };
+  // Prefer steady walk (e.g. "Armature|Walk") before substring "walk" matches like "RoarToWalk"
   const run =
     animations.find((c) => /run|sprint|jog/i.test(c.name)) ||
+    animations.find((c) => /\|Walk$/i.test(c.name)) ||
     animations.find((c) => /walk/i.test(c.name));
   const idle = animations.find((c) =>
     /idle|stand|breath|t-?pose/i.test(c.name)
@@ -150,6 +157,20 @@ export function setMovingAnimation(isMoving) {
   if (!state.animationMixer) return;
 
   if (state.idleAnimAction && state.runAnimAction) {
+    const iw = state.idleAnimAction.getEffectiveWeight();
+    const rw = state.runAnimAction.getEffectiveWeight();
+    // Stacked crossfades can leave both weights at 0; recover before blending again.
+    if (iw + rw < 0.02) {
+      state.idleAnimAction.reset();
+      state.runAnimAction.reset();
+      state.idleAnimAction.play();
+      state.runAnimAction.play();
+      state.idleAnimAction.setEffectiveWeight(isMoving ? 0 : 1);
+      state.runAnimAction.setEffectiveWeight(isMoving ? 1 : 0);
+      state.lastMovingState = isMoving;
+      return;
+    }
+
     if (state.lastMovingState === isMoving) return;
     const fade = ANIMATION_CROSSFADE;
     if (isMoving) {

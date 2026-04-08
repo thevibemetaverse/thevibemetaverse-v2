@@ -1,7 +1,14 @@
 import * as THREE from 'three';
 import { state } from './state.js';
 import { setMovingAnimation } from './character.js';
-import { PLAYER_MOVE_SPEED, PLAYER_WORLD_LIMIT, PLAYER_SPAWN_Z } from './constants.js';
+import {
+  MOVE_STICKY_FRAMES,
+  PLAYER_MOVE_SPEED,
+  PLAYER_WORLD_LIMIT,
+  PLAYER_SPAWN_Z,
+} from './constants.js';
+
+let moveStickyFrames = 0;
 
 export function createPlayer() {
   state.player = new THREE.Group();
@@ -35,10 +42,14 @@ export function updatePlayer(delta) {
     move.z += forward.z * -state.moveInput.z + right.z * state.moveInput.x;
   }
 
-  const isMoving = move.lengthSq() > 0;
-  setMovingAnimation(isMoving);
+  const hasMoveInput = move.lengthSq() > 0;
+  if (hasMoveInput) moveStickyFrames = MOVE_STICKY_FRAMES;
+  else if (moveStickyFrames > 0) moveStickyFrames--;
+  const isMovingForAnimation = moveStickyFrames > 0;
 
-  if (isMoving) {
+  setMovingAnimation(isMovingForAnimation);
+
+  if (hasMoveInput) {
     move.normalize().multiplyScalar(speed);
     state.player.position.add(move);
     const face = Math.atan2(move.x, move.z);
