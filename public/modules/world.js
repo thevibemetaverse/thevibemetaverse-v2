@@ -301,5 +301,5 @@ export function updateTrees() {
     leafShaderUniforms.uWindFrequency.value = 0.4;
     leafShaderUniforms.uWindScale.value = 120;
   }
-  leafShaderUniforms.uTime.value = state.clock.elapsedTime / 4;
+  leafShaderUniforms.uTime.value = (state.clock.elapsedTime % 1000) / 4;
 }
