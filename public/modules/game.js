@@ -16,7 +16,7 @@ import { initSettings, updateSettings } from './settings.js';
 import { initModels } from './models.js';
 import { initDevTools } from './dev-tools.js';
 import { initClouds, updateClouds } from './clouds.js';
-import { initMultiplayer, updateMultiplayer } from './multiplayer.js';
+import { initMultiplayer, updateMultiplayer, notifyLocalNameChanged } from './multiplayer.js';
 import { initNametag } from './nametag.js';
 
 export function init() {
@@ -39,7 +39,7 @@ export function init() {
   setupPlayerControls();
   initMobileControls();
   loadPlayerModel();
-  initNametag();
+  initNametag({ onNameChanged: notifyLocalNameChanged });
   initAvatarPicker();
   initPortals(state.scene, state.player);
   initModels();

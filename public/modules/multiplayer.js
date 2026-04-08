@@ -5,6 +5,7 @@ import {
   MULTIPLAYER_SEND_INTERVAL_MS,
   MULTIPLAYER_REMOTE_LERP,
   PLAYER_SPAWN_Z,
+  DEFAULT_PLAYER_NAME,
 } from './constants.js';
 import {
   BUNDLED_METAVERSE_EXPLORER,
@@ -55,7 +56,7 @@ function clearAllRemotes() {
   }
 }
 
-function ensureRemotePlayer(id, avatarUrl, name = 'metaverse-explorer') {
+function ensureRemotePlayer(id, avatarUrl, name = DEFAULT_PLAYER_NAME) {
   if (id === state.localPlayerId) return;
   const existing = state.remotePlayers.get(id);
   if (existing) {
@@ -123,7 +124,7 @@ function handleMessage(raw) {
       const list = Array.isArray(msg.players) ? msg.players : [];
       for (const p of list) {
         if (p?.id && typeof p.avatarUrl === 'string') {
-          ensureRemotePlayer(p.id, p.avatarUrl, p.name || 'metaverse-explorer');
+          ensureRemotePlayer(p.id, p.avatarUrl, p.name || DEFAULT_PLAYER_NAME);
         }
       }
       break;
@@ -133,7 +134,7 @@ function handleMessage(raw) {
         ensureRemotePlayer(
           msg.id,
           typeof msg.avatarUrl === 'string' ? msg.avatarUrl : '',
-          typeof msg.name === 'string' ? msg.name : 'metaverse-explorer'
+          typeof msg.name === 'string' ? msg.name : DEFAULT_PLAYER_NAME
         );
       }
       break;
@@ -157,15 +158,11 @@ function handleMessage(raw) {
       );
       r.targetRotY = Number(msg.ry) || 0;
       r.moving = Boolean(msg.moving);
-      if (typeof msg.name === 'string' && msg.name !== r.name) {
-        r.name = msg.name;
-        if (r.nametagSprite) updateNametagText(r.nametagSprite, msg.name);
-      }
       break;
     }
     case 'player_avatar': {
       if (!msg.id || msg.id === state.localPlayerId) break;
-      const existingName = state.remotePlayers.get(msg.id)?.name || 'metaverse-explorer';
+      const existingName = state.remotePlayers.get(msg.id)?.name || DEFAULT_PLAYER_NAME;
       disposeRemoteById(msg.id);
       ensureRemotePlayer(
         msg.id,
@@ -178,7 +175,7 @@ function handleMessage(raw) {
       if (!msg.id || msg.id === state.localPlayerId) break;
       const r = state.remotePlayers.get(msg.id);
       if (r) {
-        r.name = msg.name || 'metaverse-explorer';
+        r.name = msg.name || DEFAULT_PLAYER_NAME;
         if (r.nametagSprite) updateNametagText(r.nametagSprite, r.name);
       }
       break;
@@ -203,7 +200,6 @@ function sendState() {
       z: p.z,
       ry: state.player.rotation.y,
       moving: state.localPlayerMoving,
-      name: state.localPlayerName,
     })
   );
 }

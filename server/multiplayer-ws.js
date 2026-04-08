@@ -4,6 +4,8 @@ import { WebSocketServer } from 'ws';
 const WORLD_LIMIT = 300;
 const STALE_MS = 45_000;
 const PRUNE_INTERVAL_MS = 10_000;
+const DEFAULT_PLAYER_NAME = 'metaverse-explorer';
+const MAX_NAME_LENGTH = 20;
 
 function clampWorld(n) {
   if (!Number.isFinite(n)) return 0;
@@ -68,7 +70,7 @@ export function attachMultiplayerWebSocket(server) {
         if (meta) return;
         const id = randomUUID();
         const avatarUrl = typeof msg.avatarUrl === 'string' ? msg.avatarUrl : '';
-        const name = typeof msg.name === 'string' ? msg.name : 'metaverse-explorer';
+        const name = typeof msg.name === 'string' ? msg.name.trim().slice(0, MAX_NAME_LENGTH) || DEFAULT_PLAYER_NAME : DEFAULT_PLAYER_NAME;
         sockets.set(ws, { id, avatarUrl, name, lastSeen: Date.now() });
 
         const others = [];
@@ -102,7 +104,7 @@ export function attachMultiplayerWebSocket(server) {
       }
 
       if (msg.type === 'name') {
-        const next = typeof msg.name === 'string' ? msg.name : 'metaverse-explorer';
+        const next = typeof msg.name === 'string' ? msg.name.trim().slice(0, MAX_NAME_LENGTH) || DEFAULT_PLAYER_NAME : DEFAULT_PLAYER_NAME;
         meta.name = next;
         broadcast({ type: 'player_name', id: meta.id, name: next }, ws);
         return;
@@ -114,8 +116,6 @@ export function attachMultiplayerWebSocket(server) {
         const z = clampWorld(Number(msg.z));
         const ry = Number.isFinite(Number(msg.ry)) ? Number(msg.ry) : 0;
         const moving = Boolean(msg.moving);
-        const name = typeof msg.name === 'string' ? msg.name : meta.name;
-        if (name !== meta.name) meta.name = name;
         broadcast(
           {
             type: 'player_state',
@@ -125,7 +125,6 @@ export function attachMultiplayerWebSocket(server) {
             z,
             ry,
             moving,
-            name,
           },
           ws
         );

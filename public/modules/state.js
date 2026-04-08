@@ -1,6 +1,6 @@
 // @ts-check
 import * as THREE from 'three';
-import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
+import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from './constants.js';
 
 /**
  * @typedef {'EXPLORING' | 'PROMPTING'} GameState
@@ -98,7 +98,7 @@ export const state = {
 
   localPlayerId: null,
   localPlayerMoving: false,
-  localPlayerName: 'metaverse-explorer',
+  localPlayerName: DEFAULT_PLAYER_NAME,
   remotePlayers: new Map(),
 
   // DOM refs (populated in init)
