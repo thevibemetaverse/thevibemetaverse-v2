@@ -260,7 +260,9 @@ function createTrees() {
       tree.traverse((child) => {
         if (child.isMesh) {
           child.geometry.dispose();
-          if (child.material.map) child.material.map.dispose();
+          if (child.material !== leafMaterial && child.material !== barkMat) {
+            if (child.material.map) child.material.map.dispose();
+          }
         }
       });
     }
