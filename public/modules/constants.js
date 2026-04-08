@@ -79,3 +79,9 @@ export const SHADOW_NORMAL_BIAS = 0.02;
 
 // -- Animation --
 export const MAX_DELTA = 0.1;               // clamp frame delta to prevent physics jumps
+
+// -- Multiplayer --
+/** Minimum ms between network position updates (client send). */
+export const MULTIPLAYER_SEND_INTERVAL_MS = 50;
+/** Higher = snappier remote position catch-up (exponential lerp factor). */
+export const MULTIPLAYER_REMOTE_LERP = 18;

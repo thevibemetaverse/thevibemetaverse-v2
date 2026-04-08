@@ -36,6 +36,7 @@ export function updatePlayer(delta) {
   }
 
   const isMoving = move.lengthSq() > 0;
+  state.localPlayerMoving = isMoving;
   setMovingAnimation(isMoving);
 
   if (isMoving) {

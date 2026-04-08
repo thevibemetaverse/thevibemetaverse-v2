@@ -16,6 +16,7 @@ import { initSettings, updateSettings } from './settings.js';
 import { initModels } from './models.js';
 import { initDevTools } from './dev-tools.js';
 import { initClouds, updateClouds } from './clouds.js';
+import { initMultiplayer, updateMultiplayer } from './multiplayer.js';
 
 export function init() {
   // Populate DOM refs
@@ -42,6 +43,7 @@ export function init() {
   initModels();
   initSettings();
   initDevTools();
+  initMultiplayer();
 
   window.addEventListener('resize', onResize);
   animate();
@@ -51,6 +53,7 @@ function animate() {
   requestAnimationFrame(animate);
   const delta = Math.min(state.clock.getDelta(), MAX_DELTA);
   updatePlayer(delta);
+  updateMultiplayer(delta);
   updateGrass();
   updateTrees();
   updateClouds(delta);
