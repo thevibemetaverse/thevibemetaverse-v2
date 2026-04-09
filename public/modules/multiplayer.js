@@ -221,6 +221,11 @@ function handleMessage(raw) {
             if (r.roomId === state.currentRoom) {
               state.roomCountdown = r.countdown ?? null;
               state.roomPlayers = Array.isArray(r.players) ? r.players : [];
+              // Keep host info in sync from periodic broadcasts
+              if (r.hostId) {
+                state.roomHostName = r.hostName || null;
+                state.isRoomHost = !!(r.hostId === state.localPlayerId);
+              }
             }
           }
         }

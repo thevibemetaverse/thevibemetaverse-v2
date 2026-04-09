@@ -37,6 +37,9 @@ let lastHostName = '';
 let lastIsHost = false;
 let meetingStarted = false;
 
+/** Accumulated time for client-side countdown tick (seconds). */
+let countdownAccum = 0;
+
 /** Raycaster for detecting clicks on the wall screen. */
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -328,6 +331,11 @@ export function enterRoom(roomId, gameUrl, gameTitle) {
   state.currentRoomGameTitle = gameTitle || '';
   state.gameState = 'IN_ROOM';
 
+  // Optimistic defaults — server will correct via room_welcome
+  state.roomCountdown = 60;
+  state.isRoomHost = true;
+  state.roomHostName = state.localPlayerName || 'Host';
+
   // Hide lobby, show room
   if (state.lobbyGroup) state.lobbyGroup.visible = false;
   if (roomGroup) roomGroup.visible = true;
@@ -368,6 +376,7 @@ export function enterRoom(roomId, gameUrl, gameTitle) {
   // Send join_room via WS
   sendRoomMessage({ type: 'join_room', roomId, gameUrl });
 
+  countdownAccum = 0;
   screenDirty = true;
 }
 
@@ -389,6 +398,7 @@ export function exitRoom() {
   state.roomHostName = null;
   state.isRoomHost = false;
   meetingStarted = false;
+  countdownAccum = 0;
   document.body.style.cursor = '';
 
   // Show lobby, hide room
@@ -422,6 +432,16 @@ export function exitRoom() {
  */
 export function updateMeetingRoom(_delta) {
   if (state.currentRoom === 'lobby') return;
+
+  // Client-side countdown tick — decrement every second between server updates
+  if (!meetingStarted && typeof state.roomCountdown === 'number' && state.roomCountdown > 0) {
+    countdownAccum += _delta;
+    if (countdownAccum >= 1) {
+      const ticks = Math.floor(countdownAccum);
+      countdownAccum -= ticks;
+      state.roomCountdown = Math.max(0, state.roomCountdown - ticks);
+    }
+  }
 
   // Check if countdown, host, or player list changed
   const hostName = state.roomHostName || '';
@@ -647,5 +667,7 @@ export function onMeetingStarted() {
 function sendRoomMessage(msg) {
   if (_ws && _ws.readyState === WebSocket.OPEN) {
     _ws.send(JSON.stringify(msg));
+  } else {
+    console.warn('[meeting-room] WS not open, dropping message:', msg.type);
   }
 }
