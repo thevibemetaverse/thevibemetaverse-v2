@@ -185,11 +185,13 @@ export async function initPortals(scene, player) {
   });
   pieterPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
 
-  // Scatter portals in deterministic pseudo-random positions (seeded PRNG)
+  // Scatter portals in deterministic pseudo-random positions (seeded PRNG),
+  // biased into a band in front of spawn so they are visible sooner on load.
   const PORTAL_SCALE = 7.5;
-  const SCATTER_MIN = 60;
-  const SCATTER_MAX = 220;
-  const MIN_SEPARATION = 40;
+  const SCATTER_HALF_WIDTH = 95;
+  const SCATTER_FRONT_MIN = 45;
+  const SCATTER_FRONT_MAX = 135;
+  const MIN_SEPARATION = 34;
   const spawnPos = new THREE.Vector3(0, 0, PLAYER_SPAWN_Z);
   const placedPositions = [];
 
@@ -206,10 +208,13 @@ export async function initPortals(scene, player) {
     let x, z, tooClose;
     let attempts = 0;
     do {
-      const angle = seededRandom() * Math.PI * 2;
-      const dist = SCATTER_MIN + seededRandom() * (SCATTER_MAX - SCATTER_MIN);
-      x = Math.cos(angle) * dist;
-      z = Math.sin(angle) * dist;
+      const xOffset = (seededRandom() * 2 - 1) * SCATTER_HALF_WIDTH;
+      const zOffset = -(
+        SCATTER_FRONT_MIN +
+        seededRandom() * (SCATTER_FRONT_MAX - SCATTER_FRONT_MIN)
+      );
+      x = spawnPos.x + xOffset;
+      z = spawnPos.z + zOffset;
       tooClose = placedPositions.some(
         (p) => Math.hypot(p.x - x, p.z - z) < MIN_SEPARATION
       );
