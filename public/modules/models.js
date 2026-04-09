@@ -81,7 +81,8 @@ function loadModel(placement) {
           }
         });
 
-        state.scene.add(model);
+        const parent = state.lobbyGroup || state.scene;
+        parent.add(model);
         loadedModels.set(placement.name, model);
         onLoadCallbacks.forEach((cb) => cb());
         resolve(model);

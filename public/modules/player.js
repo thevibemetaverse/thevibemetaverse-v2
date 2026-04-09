@@ -17,7 +17,7 @@ export function createPlayer() {
 
 export function updatePlayer(delta) {
   if (!state.player) return;
-  if (state.gameState !== 'EXPLORING') return;
+  if (state.gameState !== 'EXPLORING' && state.gameState !== 'IN_ROOM') return;
 
   const xrOn = state.renderer?.xr?.isPresenting === true;
   if (xrOn) {

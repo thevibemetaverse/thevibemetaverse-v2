@@ -15,6 +15,7 @@ import {
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity } from './portal-proximity.js';
+import { state } from './state.js';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
@@ -24,6 +25,55 @@ let portals = [];
 let customRefPortal = null;
 let pieterPortal = null;
 let _player = null;
+
+/** @type {Map<string, {sprite: THREE.Sprite, canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, texture: THREE.CanvasTexture, lastText: string}>} */
+const portalInfoSprites = new Map();
+
+const INFO_CANVAS_W = 256;
+const INFO_CANVAS_H = 64;
+
+function createInfoSprite() {
+  const canvas = document.createElement('canvas');
+  canvas.width = INFO_CANVAS_W;
+  canvas.height = INFO_CANVAS_H;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.minFilter = THREE.LinearFilter;
+  const material = new THREE.SpriteMaterial({ map: texture, depthTest: false, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(6, 1.5, 1);
+  sprite.renderOrder = 998;
+  return { sprite, canvas, ctx, texture, lastText: '' };
+}
+
+function renderInfoCanvas(ctx, canvas, text) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = 'bold 20px Courier New, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Background pill
+  const metrics = ctx.measureText(text);
+  const pillW = metrics.width + 24;
+  const pillH = 36;
+  const pillX = (canvas.width - pillW) / 2;
+  const pillY = (canvas.height - pillH) / 2;
+  const r = 10;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+  ctx.beginPath();
+  ctx.moveTo(pillX + r, pillY);
+  ctx.lineTo(pillX + pillW - r, pillY);
+  ctx.quadraticCurveTo(pillX + pillW, pillY, pillX + pillW, pillY + r);
+  ctx.lineTo(pillX + pillW, pillY + pillH - r);
+  ctx.quadraticCurveTo(pillX + pillW, pillY + pillH, pillX + pillW - r, pillY + pillH);
+  ctx.lineTo(pillX + r, pillY + pillH);
+  ctx.quadraticCurveTo(pillX, pillY + pillH, pillX, pillY + pillH - r);
+  ctx.lineTo(pillX, pillY + r);
+  ctx.quadraticCurveTo(pillX, pillY, pillX + r, pillY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#fff';
+  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+}
 
 /** Same X layout as `spawnPortalRow` in the SDK. */
 function portalRowSlotX(slotIndex, totalSlots, spacing = PORTAL_ROW_SPACING) {
@@ -76,6 +126,9 @@ export async function initPortals(scene, player) {
     data = [];
   }
 
+  // After async fetch, lobbyGroup may exist — add portals there so they hide with the lobby
+  const parentContainer = state.lobbyGroup || scene;
+
   const wantCustomPortal = hasPortalQueryParam();
   data = (data || []).filter((p) => p.url && !isSameDocumentDestination(p.url));
 
@@ -86,7 +139,7 @@ export async function initPortals(scene, player) {
   const trailingSlots = hubExitEntry ? 1 : 0;
   const totalSlots = leadingSlots + registryData.length + trailingSlots;
 
-  portals = spawnPortalRow(scene, registryData, {
+  portals = spawnPortalRow(parentContainer, registryData, {
     rowZ: PORTAL_ROW_Z,
     spacing: PORTAL_ROW_SPACING,
     leadingSlots,
@@ -100,14 +153,14 @@ export async function initPortals(scene, player) {
       label: hubExitEntry.title || hubExitEntry.slug,
       name: 'portal-' + hubExitEntry.slug,
     });
-    scene.add(group);
+    parentContainer.add(group);
     portals.push({ data: hubExitEntry, group });
   }
 
   // Pieter portal is anchored at a fixed X on the right.
   // Registry portals extend leftward from there.
   const pieterX = PORTAL_PIETER_X + PORTAL_GLOBAL_X_OFFSET;
-  pieterPortal = createTorusPortal(scene, {
+  pieterPortal = createTorusPortal(parentContainer, {
     color: 0x00ff00,
     label: 'VIBEVERSE PORTAL',
     name: 'pieter-portal',
@@ -130,9 +183,27 @@ export async function initPortals(scene, player) {
     portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
   }
 
+  // Create info sprites for registry portals showing player count + countdown
+  for (let i = 0; i < portals.length; i++) {
+    const portal = portals[i];
+    const roomId = portal.data.slug || (portal.data.title || `portal-${i}`).replace(/\s+/g, '-').toLowerCase();
+    const info = createInfoSprite();
+    info.sprite.position.set(0, 3.5, 0); // above portal (in local group space, scaled)
+    portal.group.add(info.sprite);
+    portalInfoSprites.set(roomId, info);
+  }
+
+  // Info sprite for Pieter portal
+  if (pieterPortal) {
+    const info = createInfoSprite();
+    info.sprite.position.set(0, 3.5, 0);
+    pieterPortal.group.add(info.sprite);
+    portalInfoSprites.set('vibeverse-portal', info);
+  }
+
   // Red return portal (?portal) — centered behind spawn, a few units along +Z.
   if (wantCustomPortal) {
-    customRefPortal = createTorusPortal(scene, {
+    customRefPortal = createTorusPortal(parentContainer, {
       color: 0xff0000,
       label: getReturnPortalLabel(),
       name: 'custom-ref-portal',
@@ -156,6 +227,39 @@ export function updatePortals() {
   // Animate SDK portal shader uniforms
   for (const portal of portals) {
     portal.group.userData.portalMat.uniforms.time.value = elapsed;
+  }
+
+  // Update portal info sprites from room countdown data
+  // Sprite keys are portal slugs (e.g. "portal-network") but roomCountdowns
+  // uses unique IDs with a random suffix (e.g. "portal-network-g8s2aa").
+  // Match by prefix to find the active room for each portal.
+  for (const [slug, info] of portalInfoSprites) {
+    let roomData = null;
+    for (const [roomId, data] of state.roomCountdowns) {
+      if (roomId === slug || roomId.startsWith(slug + '-')) {
+        if (!roomData || data.playerCount > roomData.playerCount) {
+          roomData = data;
+        }
+      }
+    }
+    let text;
+    if (roomData && roomData.playerCount > 0) {
+      const m = Math.floor(roomData.countdown / 60);
+      const s = roomData.countdown % 60;
+      text = `${roomData.playerCount}p | ${m}:${String(s).padStart(2, '0')}`;
+    } else {
+      text = '';
+    }
+    if (text !== info.lastText) {
+      info.lastText = text;
+      if (text) {
+        renderInfoCanvas(info.ctx, info.canvas, text);
+        info.texture.needsUpdate = true;
+        info.sprite.visible = true;
+      } else {
+        info.sprite.visible = false;
+      }
+    }
   }
 
   // Proximity detection and navigation

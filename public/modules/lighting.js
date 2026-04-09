@@ -2,12 +2,17 @@ import * as THREE from 'three';
 import { state } from './state.js';
 import { SHADOW_MAP_SIZE, SUN_INTENSITY, SUN_POSITION, AMBIENT_INTENSITY, HEMI_INTENSITY, SHADOW_RADIUS, SHADOW_NORMAL_BIAS } from './constants.js';
 
+/** @type {THREE.Light[]} */
+const lobbyLights = [];
+
 export function setupLighting() {
   const ambient = new THREE.AmbientLight(0xC8DDEF, AMBIENT_INTENSITY);
   state.scene.add(ambient);
+  lobbyLights.push(ambient);
 
   const hemi = new THREE.HemisphereLight(0x87CEEB, 0x8CB86A, HEMI_INTENSITY);
   state.scene.add(hemi);
+  lobbyLights.push(hemi);
 
   const sun = new THREE.DirectionalLight(0xFFFDD0, SUN_INTENSITY);
   sun.position.set(...SUN_POSITION);
@@ -24,6 +29,7 @@ export function setupLighting() {
   sun.shadow.radius = SHADOW_RADIUS;
   sun.shadow.normalBias = SHADOW_NORMAL_BIAS;
   state.scene.add(sun);
+  lobbyLights.push(sun);
 
   // Procedural environment map for reflections on metallic/glossy objects
   const pmremGenerator = new THREE.PMREMGenerator(state.renderer);
@@ -48,4 +54,19 @@ export function setupLighting() {
   const envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
   state.scene.environment = envMap;
   pmremGenerator.dispose();
+}
+
+/** @type {THREE.Texture | null} */
+let _cachedEnvMap = null;
+
+/** Store/restore environment map when toggling room. */
+export function disableLobbyLighting() {
+  _cachedEnvMap = state.scene?.environment || null;
+  for (const light of lobbyLights) light.visible = false;
+  if (state.scene) state.scene.environment = null;
+}
+
+export function enableLobbyLighting() {
+  for (const light of lobbyLights) light.visible = true;
+  if (state.scene && _cachedEnvMap) state.scene.environment = _cachedEnvMap;
 }

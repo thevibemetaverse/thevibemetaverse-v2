@@ -6,8 +6,62 @@ import {
   PORTAL_CUSTOM_REF_ENTER_DIST,
   PLAYER_MOVE_SPEED,
 } from './constants.js';
+import { enterRoom } from './meeting-room.js';
 
 const PIETER_PORTAL_URL = 'https://portal.pieter.com';
+
+/** Cached vector to avoid per-frame allocation in checkProximity. */
+const _worldPos = new THREE.Vector3();
+
+/** Fun metaverse-themed room name slugs. */
+const ROOM_NAMES = [
+  // Snow Crash
+  'sweet-bby-rays',
+  'hiro-protagonist',
+  'yt',
+  'raven',
+  'juanita-marquez',
+  'uncle-enzo',
+  'lagos',
+  'yts-mom',
+  'black-sun',
+  'the-street',
+  'snow-crash',
+  'metaball',
+  'reason',
+  'kourier',
+  'mr-lee',
+  'ng-security',
+  'avatara',
+  'da5id',
+  'the-deliverator',
+  'cosa-nostra-pizza',
+  'rat-thing',
+  'the-librarian',
+  'burbclave',
+  'franchise-ghetto',
+  'vitaly-chernobyl',
+  'enki',
+  'babel',
+  'brandy',
+  // Metaverse culture
+  'crypto-is-not-the-metaverse',
+  'open-metaverse',
+  'big-green-egg',
+  'the-oasis',
+  'the-matrix',
+  'second-life-og',
+  'club-penguin-walked-so-we-could-run',
+  'habbo-hotel',
+  'touch-grass',
+];
+
+/** Build a room ID that starts with the portal slug so sprite matching works. */
+function uniqueRoomId(prefix) {
+  const name = ROOM_NAMES[Math.floor(Math.random() * ROOM_NAMES.length)];
+  const rand = Math.random().toString(36).slice(2, 5);
+  return `${prefix}-${name}-${rand}`;
+}
 
 /** Ground-plane distance — portal groups are elevated in Y, so 3D distance never matches tuning. */
 function distanceXZ(a, b) {
@@ -38,26 +92,7 @@ function ensurePrompt() {
   document.body.appendChild(promptEl);
 }
 
-function navigateToRefPortal() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const refUrl = urlParams.get('ref');
-  if (!refUrl) return;
-  let url = refUrl;
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = 'https://' + url;
-  }
-  const newParams = new URLSearchParams();
-  for (const [key, value] of urlParams) {
-    if (key !== 'ref') {
-      newParams.append(key, value);
-    }
-  }
-  const paramString = newParams.toString();
-  navigating = true;
-  window.location.href = url + (paramString ? '?' + paramString : '');
-}
-
-function navigateToPieterPortal() {
+function buildPieterPortalUrl() {
   const currentParams = new URLSearchParams(window.location.search);
   const newParams = new URLSearchParams();
   newParams.append('portal', 'true');
@@ -72,20 +107,7 @@ function navigateToPieterPortal() {
     document.title || document.location.hostname || 'The Vibe Metaverse'
   );
   const paramString = newParams.toString();
-  navigating = true;
-  window.location.href = PIETER_PORTAL_URL + (paramString ? '?' + paramString : '');
-}
-
-function navigateToRegistryPortal(portal) {
-  const params = new URLSearchParams(window.location.search);
-  const username = params.get('username');
-  const avatar = params.get('avatar_url');
-
-  window.location.href = buildPortalUrl(portal.data, {
-    username: username || undefined,
-    avatarUrl: avatar || undefined,
-    fromPortal: document.title || undefined,
-  });
+  return PIETER_PORTAL_URL + (paramString ? '?' + paramString : '');
 }
 
 /**
@@ -96,7 +118,7 @@ function navigateToRegistryPortal(portal) {
  * @param {Array} registryPortals
  */
 export function checkProximity(player, customRefPortal, pieterPortal, registryPortals) {
-  const worldPos = new THREE.Vector3();
+  const worldPos = _worldPos;
 
   let refDist = Infinity;
   if (player && customRefPortal) {
@@ -146,31 +168,43 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
 
   if (best?.kind === 'ref' && !navigating) {
     ensurePrompt();
-    promptEl.textContent = fromPortalName
-      ? `Returning to ${fromPortalName}…`
-      : 'Entering portal…';
+    promptEl.textContent = 'Entering meeting room…';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
-      navigateToRefPortal();
+      navigating = true;
+      const roomId = uniqueRoomId('ref');
+      if (promptEl) promptEl.style.display = 'none';
+      enterRoom(roomId, refUrl.startsWith('http') ? refUrl : 'https://' + refUrl);
+      navigating = false;
     }
   } else if (best?.kind === 'pieter' && !navigating) {
     ensurePrompt();
-    promptEl.textContent = 'Entering Vibeverse portal...';
+    promptEl.textContent = 'Entering meeting room…';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
-      navigateToPieterPortal();
+      navigating = true;
+      if (promptEl) promptEl.style.display = 'none';
+      const pieterUrl = buildPieterPortalUrl();
+      enterRoom(uniqueRoomId('vibeverse'), pieterUrl);
+      navigating = false;
     }
   } else if (best?.kind === 'registry' && best.portal && !navigating) {
+    const portalTitle = best.portal.data.title || best.portal.data.slug;
     ensurePrompt();
-    promptEl.textContent =
-      'Entering ' + (best.portal.data.title || best.portal.data.slug) + '...';
+    promptEl.textContent = 'Entering meeting room…';
     promptEl.style.display = 'block';
 
     if (best.dist < PORTAL_ENTER_DIST) {
       navigating = true;
-      promptEl.textContent =
-        'Entering ' + (best.portal.data.title || best.portal.data.slug) + '...';
-      navigateToRegistryPortal(best.portal);
+      const gameUrl = buildPortalUrl(best.portal.data, {
+        username: urlParams.get('username') || undefined,
+        avatarUrl: urlParams.get('avatar_url') || undefined,
+        fromPortal: document.title || undefined,
+      });
+      if (promptEl) promptEl.style.display = 'none';
+      const slug = best.portal.data.slug || portalTitle.replace(/\s+/g, '-').toLowerCase();
+      enterRoom(uniqueRoomId(slug), gameUrl, portalTitle);
+      navigating = false;
     }
   } else if (promptEl) {
     promptEl.style.display = 'none';

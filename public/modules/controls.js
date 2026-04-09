@@ -14,7 +14,7 @@ export function setupPlayerControls() {
 
   window.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-    if (state.gameState === 'EXPLORING') {
+    if (state.gameState === 'EXPLORING' || state.gameState === 'IN_ROOM') {
       state.keys[e.code] = true;
     }
   });
@@ -23,7 +23,7 @@ export function setupPlayerControls() {
   });
 
   state.renderer.domElement.addEventListener('pointerdown', (e) => {
-    if (e.button === 0 && state.gameState === 'EXPLORING') state.isPointerDown = true;
+    if (e.button === 0 && (state.gameState === 'EXPLORING' || state.gameState === 'IN_ROOM')) state.isPointerDown = true;
   });
   window.addEventListener('pointerup', () => {
     state.isPointerDown = false;
