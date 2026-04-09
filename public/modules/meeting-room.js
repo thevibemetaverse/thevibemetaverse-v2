@@ -37,6 +37,12 @@ let lastHostName = '';
 let lastIsHost = false;
 let meetingStarted = false;
 
+/** @type {Window | null} */
+let pendingGameWindow = null;
+
+/** The game URL to open once the meeting has launched. */
+let launchedGameUrl = '';
+
 /** Accumulated time for client-side countdown tick (seconds). */
 let countdownAccum = 0;
 
@@ -66,32 +72,42 @@ export function initMeetingRoom() {
     }
   });
 
-  // Click handler for the wall screen start button
+  // Click handler for the wall screen (start button + join game)
   window.addEventListener('click', (e) => {
-    if (state.currentRoom === 'lobby' || !wallScreen || !state.camera || meetingStarted) return;
-    if (!state.isRoomHost) return;
+    if (state.currentRoom === 'lobby' || !wallScreen || !state.camera) return;
     pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(pointer, state.camera);
+    wallScreen.updateMatrixWorld(true);
     const hits = raycaster.intersectObject(wallScreen);
-    if (hits.length > 0) {
+    if (hits.length === 0) return;
+
+    if (meetingStarted && launchedGameUrl) {
+      // Any player can click to join the game after launch
+      window.open(launchedGameUrl, '_blank');
+    } else if (!meetingStarted && state.isRoomHost) {
+      // Host starts the meeting
       meetingStarted = true;
       screenDirty = true;
+      pendingGameWindow = window.open('about:blank', '_blank');
       sendRoomMessage({ type: 'start_meeting' });
     }
   });
 
-  // Hover handler — show not-allowed cursor for non-host, pointer for host
+  // Hover handler — show pointer when screen is clickable
   window.addEventListener('mousemove', (e) => {
-    if (state.currentRoom === 'lobby' || !wallScreen || !state.camera || meetingStarted) {
+    if (state.currentRoom === 'lobby' || !wallScreen || !state.camera) {
       return;
     }
     pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(pointer, state.camera);
+    wallScreen.updateMatrixWorld(true);
     const hits = raycaster.intersectObject(wallScreen);
     if (hits.length > 0) {
-      document.body.style.cursor = state.isRoomHost ? 'pointer' : 'not-allowed';
+      // Clickable if: meeting launched (join game) or host can start
+      const clickable = (meetingStarted && launchedGameUrl) || (!meetingStarted && state.isRoomHost);
+      document.body.style.cursor = clickable ? 'pointer' : (!meetingStarted ? 'not-allowed' : '');
     } else if (state.currentRoom !== 'lobby') {
       document.body.style.cursor = '';
     }
@@ -320,6 +336,7 @@ export function initMeetingRoom() {
  * @param {string} [gameTitle]
  */
 export function enterRoom(roomId, gameUrl, gameTitle) {
+  console.log('[meeting-room] enterRoom called:', { roomId, currentRoom: state.currentRoom, modelLoaded, wsOpen: _ws?.readyState === WebSocket.OPEN });
   if (state.currentRoom !== 'lobby') return;
   if (!modelLoaded) {
     pendingJoin = { roomId, gameUrl, gameTitle };
@@ -398,6 +415,8 @@ export function exitRoom() {
   state.roomHostName = null;
   state.isRoomHost = false;
   meetingStarted = false;
+  launchedGameUrl = '';
+  pendingGameWindow = null;
   countdownAccum = 0;
   document.body.style.cursor = '';
 
@@ -515,13 +534,30 @@ function renderScreen() {
 
     // Meeting Started!
     ctx.fillStyle = '#00ff88';
-    ctx.font = 'bold 56px Courier New, monospace';
-    ctx.fillText('Meeting Started!', w / 2, 130);
+    ctx.font = 'bold 48px Courier New, monospace';
+    ctx.fillText('Meeting Started!', w / 2, 110);
+
+    // "Click to Join Game" button
+    if (launchedGameUrl) {
+      const btnW = 320;
+      const btnH = 44;
+      const btnX = (w - btnW) / 2;
+      const btnY = 150;
+
+      ctx.fillStyle = '#00ff88';
+      ctx.beginPath();
+      ctx.roundRect(btnX, btnY, btnW, btnH, 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 22px Courier New, monospace';
+      ctx.fillText('Click to Join Game', w / 2, btnY + btnH / 2);
+    }
 
     // Attendees
     ctx.fillStyle = '#fff';
-    ctx.font = '16px Courier New, monospace';
-    ctx.fillText(attendeesStr, w / 2, 200);
+    ctx.font = '14px Courier New, monospace';
+    ctx.fillText(attendeesStr, w / 2, 220);
   } else {
     // Host line
     ctx.fillStyle = '#aaa';
@@ -658,14 +694,22 @@ export function setRoomWebSocket(ws) {
 }
 
 /** Called when the server broadcasts room_launch (host started the meeting). */
-export function onMeetingStarted() {
+export function onMeetingStarted(gameUrl) {
   meetingStarted = true;
+  launchedGameUrl = gameUrl || '';
   screenDirty = true;
+
+  // Host: navigate the pre-opened blank tab to the game
+  if (pendingGameWindow && !pendingGameWindow.closed && gameUrl) {
+    pendingGameWindow.location.href = gameUrl;
+    pendingGameWindow = null;
+  }
 }
 
 /** @param {object} msg */
 function sendRoomMessage(msg) {
   if (_ws && _ws.readyState === WebSocket.OPEN) {
+    console.log('[meeting-room] sending:', msg.type, msg);
     _ws.send(JSON.stringify(msg));
   } else {
     console.warn('[meeting-room] WS not open, dropping message:', msg.type);

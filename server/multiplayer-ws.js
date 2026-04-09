@@ -313,9 +313,11 @@ export function attachMultiplayerWebSocket(server) {
 
       if (msg.type === 'start_meeting') {
         const roomId = meta.room;
-        if (roomId === 'lobby') return;
+        console.log('[start_meeting] roomId:', roomId, 'meta.id:', meta.id);
+        if (roomId === 'lobby') { console.log('[start_meeting] rejected: still in lobby'); return; }
         const room = rooms.get(roomId);
-        if (!room || room.host !== ws) return; // only host can start
+        if (!room) { console.log('[start_meeting] rejected: room not found'); return; }
+        if (room.host !== ws) { console.log('[start_meeting] rejected: not host. host exists:', !!room.host, 'players:', room.players.size); return; }
         launchRoom(roomId, room);
         return;
       }

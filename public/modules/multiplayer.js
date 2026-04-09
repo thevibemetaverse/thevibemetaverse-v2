@@ -120,6 +120,7 @@ function handleMessage(raw) {
     return;
   }
   if (!msg?.type) return;
+  if (msg.type.startsWith('room')) console.log('[multiplayer] received room msg:', msg.type, msg);
 
   switch (msg.type) {
     case 'welcome': {
@@ -258,12 +259,7 @@ function handleMessage(raw) {
     case 'room_launch': {
       // Meeting launched (host clicked Start or countdown expired)
       state.roomCountdown = 0;
-      onMeetingStarted();
-      if (msg.gameUrl) {
-        setTimeout(() => {
-          window.open(msg.gameUrl, '_blank');
-        }, 1500);
-      }
+      onMeetingStarted(msg.gameUrl || '');
       break;
     }
     default:
