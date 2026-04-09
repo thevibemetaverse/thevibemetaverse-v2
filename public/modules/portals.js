@@ -185,7 +185,10 @@ export async function initPortals(scene, player) {
 
   const registryData = data.filter((p) => p.slug !== 'portal-network');
 
-  portals = spawnPortalRow(scene, registryData, {
+  // Strip portalImageUrl so the SDK doesn't try to load relative paths (404s).
+  // We apply the images ourselves on the GLB PortalSurface after replacement.
+  const rowEntries = registryData.map((p) => ({ ...p, portalImageUrl: '' }));
+  portals = spawnPortalRow(scene, rowEntries, {
     rowZ: PORTAL_ROW_Z,
     spacing: PORTAL_ROW_SPACING,
   });
@@ -249,12 +252,12 @@ export async function initPortals(scene, player) {
 
   // Replace SDK procedural portal visuals with the GLB model
   if (portalModel) {
-    for (const portal of portals) {
-      const imgPath = portal.data?.portalImageUrl;
+    for (let i = 0; i < portals.length; i++) {
+      const imgPath = registryData[i]?.portalImageUrl;
       const imgUrl = imgPath
         ? new URL('PORTALS/' + imgPath, PORTALS_ORIGIN + '/').href
         : null;
-      replacePortalWithModel(portal.group, portalModel, imgUrl);
+      replacePortalWithModel(portals[i].group, portalModel, imgUrl);
     }
   }
 
