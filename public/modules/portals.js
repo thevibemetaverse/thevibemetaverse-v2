@@ -15,15 +15,69 @@ import {
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity } from './portal-proximity.js';
+import { gltfLoader } from './loader.js';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
+const PORTAL_V2_MODEL_PATH = 'assets/models/portal-v2.glb';
 
 const portalClock = new THREE.Clock();
 let portals = [];
 let customRefPortal = null;
 let pieterPortal = null;
 let _player = null;
+
+/** Load the portal-v2 GLB once and return the scene. */
+function loadPortalModel() {
+  return new Promise((resolve, reject) => {
+    gltfLoader.load(
+      PORTAL_V2_MODEL_PATH,
+      (gltf) => resolve(gltf.scene),
+      undefined,
+      (err) => {
+        console.warn('[Portals] Failed to load portal-v2 model:', err);
+        resolve(null);
+      }
+    );
+  });
+}
+
+/**
+ * Replace the procedural SDK portal visuals in a group with a clone of the GLB model.
+ * Keeps the label sprite and a compatible portalMat for the update loop.
+ */
+function replacePortalWithModel(group, sourceModel) {
+  // Preserve the label sprite (last child is typically the sprite)
+  const label = [];
+  group.traverse((child) => {
+    if (child.isSprite) label.push(child);
+  });
+
+  // Dispose existing procedural resources
+  const res = group.userData._portalResources;
+  if (res) {
+    res.portalGeo?.dispose();
+    res.portalMat?.dispose();
+    res.tex?.dispose();
+    res.spriteMat?.dispose();
+    delete group.userData._portalResources;
+  }
+
+  // Remove all children
+  while (group.children.length) group.remove(group.children[0]);
+
+  // Add GLB clone
+  const clone = sourceModel.clone();
+  group.add(clone);
+
+  // Re-add label sprites
+  for (const s of label) group.add(s);
+
+  // Keep a dummy portalMat so the update loop doesn't error
+  group.userData.portalMat = {
+    uniforms: { time: { value: 0 } },
+  };
+}
 
 /** Same X layout as `spawnPortalRow` in the SDK. */
 function portalRowSlotX(slotIndex, totalSlots, spacing = PORTAL_ROW_SPACING) {
@@ -68,13 +122,16 @@ function isSameDocumentDestination(portalUrl) {
 
 export async function initPortals(scene, player) {
   _player = player;
-  let data;
-  try {
-    data = await fetchPortalsRegistry(PORTALS_URL);
-  } catch (err) {
-    console.warn('[Portals] Could not load portals.json:', err);
-    data = [];
-  }
+
+  // Load portal-v2 model and registry in parallel
+  const [portalModel, registryResult] = await Promise.all([
+    loadPortalModel(),
+    fetchPortalsRegistry(PORTALS_URL).catch((err) => {
+      console.warn('[Portals] Could not load portals.json:', err);
+      return [];
+    }),
+  ]);
+  let data = registryResult;
 
   const wantCustomPortal = hasPortalQueryParam();
   data = (data || []).filter((p) => p.url && !isSameDocumentDestination(p.url));
@@ -128,6 +185,13 @@ export async function initPortals(scene, player) {
     portals[i].group.scale.setScalar(PORTAL_SCALE);
     portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, PORTAL_ROW_Z);
     portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
+  }
+
+  // Replace SDK procedural portal visuals with the GLB model
+  if (portalModel) {
+    for (const portal of portals) {
+      replacePortalWithModel(portal.group, portalModel);
+    }
   }
 
   // Red return portal (?portal) — centered behind spawn, a few units along +Z.
