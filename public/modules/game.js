@@ -68,11 +68,11 @@ function animate(_time, frame) {
   updateClouds(delta);
   updatePortals();
   updateCamera();
-  syncXrControllersToWorldAnchor();
   if (state.animationMixer) state.animationMixer.update(delta);
   updateSettings();
   updateLocalAvatarForVr();
   state.renderer.render(state.scene, state.camera);
+  syncXrControllersToWorldAnchor(frame);
 }
 
 function updateLocalAvatarForVr() {

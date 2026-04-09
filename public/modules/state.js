@@ -62,6 +62,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from 
  * @property {{ x: number, z: number }} controllerMove - left stick (gamepad / XR), deadzoned
  * @property {{ x: number, z: number }} controllerLook - right stick look / orbit input
  * @property {import('three').Group | null} xrRig - parent of camera while in XR
+ * @property {import('three').Group | null} xrTrackingScale - uniform scale (meters → world units) between xrRig and camera in VR
  * @property {import('three').Sprite | null} exitVrSprite - view-space exit control
  * @property {boolean} prevVrYButton - edge-detect Quest Y (left hand)
  *
@@ -111,6 +112,7 @@ export const state = {
   controllerMove: { x: 0, z: 0 },
   controllerLook: { x: 0, z: 0 },
   xrRig: null,
+  xrTrackingScale: null,
   exitVrSprite: null,
   prevVrYButton: false,
 

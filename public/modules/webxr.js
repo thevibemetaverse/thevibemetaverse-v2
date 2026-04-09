@@ -1,40 +1,97 @@
 // @ts-check
 import * as THREE from 'three';
 import { state } from './state.js';
-import { XR_RIG_FOOT_OFFSET_Y } from './constants.js';
+import { XR_METERS_TO_WORLD, XR_RIG_FOOT_OFFSET_Y } from './constants.js';
 
 const _raycaster = new THREE.Raycaster();
 const _origin = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
+const _scaleDecomp = new THREE.Vector3();
+const _unitScale = new THREE.Vector3(1, 1, 1);
 const _anchorM = new THREE.Matrix4();
 const _rawPose = new THREE.Matrix4();
 const _worldCtrl = new THREE.Matrix4();
+const _headRef = new THREE.Matrix4();
+const _invHead = new THREE.Matrix4();
+const _rel = new THREE.Matrix4();
+const _relScaled = new THREE.Matrix4();
+const _scaledLocal = new THREE.Matrix4();
 
 /**
- * WebXR reports controller poses in session reference space (near physical floor origin).
- * The camera uses xrRig at the *orbit* point, not the avatar feet — parenting there broke visuals.
- * Each frame: worldMatrix = translate(avatar feet in world) * refSpacePose so rays sit by your hands.
+ * XR matrices use meters; game avatars use {@link XR_METERS_TO_WORLD}–sized units. Scale translation only
+ * so hand orientation stays valid.
+ * @param {THREE.Matrix4} src
+ * @param {number} factor
+ * @param {THREE.Matrix4} out
  */
-export function syncXrControllersToWorldAnchor() {
-  const r = state.renderer;
-  if (!r?.xr?.isPresenting || !state.scene || !state.player) return;
+function scaleMat4Translation(src, factor, out) {
+  src.decompose(_origin, _quat, _scaleDecomp);
+  _origin.multiplyScalar(factor);
+  out.compose(_origin, _quat, _unitScale);
+}
 
+/**
+ * WebXR reports controller poses in session reference space (meters).
+ * - First person: world = translate(avatar feet) * scaled pose (hands by the character).
+ * - Third person: parent to camera and use local = scaled(inv(viewerRef) * targetRay) so aids sit by your
+ *   headset, not at the avatar where FP would be.
+ * Call after renderer.render so camera.matrixWorld matches the current frame.
+ * @param {globalThis.XRFrame | undefined} xrFrame
+ */
+export function syncXrControllersToWorldAnchor(xrFrame) {
+  const r = state.renderer;
+  const cam = state.camera;
+  if (!r?.xr?.isPresenting || !state.scene || !state.player || !cam) return;
+
+  const ref = r.xr.getReferenceSpace();
   const p = state.player.position;
-  _anchorM.makeTranslation(p.x, p.y + XR_RIG_FOOT_OFFSET_Y, p.z);
+  const third = state.vrPov === 'third';
 
   for (let i = 0; i < 2; i++) {
     const c = r.xr.getController(i);
     attachXrControllerViz(c);
-    if (c.parent !== state.scene) {
-      if (c.parent) c.parent.remove(c);
-      state.scene.add(c);
-    }
     c.matrixAutoUpdate = false;
     _rawPose.copy(c.matrix);
-    _worldCtrl.multiplyMatrices(_anchorM, _rawPose);
-    c.matrix.copy(_worldCtrl);
-    c.updateMatrixWorld(true);
+
+    if (third) {
+      if (c.parent !== cam) {
+        if (c.parent) c.parent.remove(c);
+        cam.add(c);
+      }
+      let ok = false;
+      if (xrFrame && ref) {
+        const pose = xrFrame.getViewerPose(ref);
+        if (pose) {
+          _headRef.fromArray(pose.transform.matrix);
+          _invHead.copy(_headRef).invert();
+          _rel.multiplyMatrices(_invHead, _rawPose);
+          scaleMat4Translation(_rel, XR_METERS_TO_WORLD, _relScaled);
+          c.matrix.copy(_relScaled);
+          ok = true;
+        }
+      }
+      if (!ok) {
+        scaleMat4Translation(_rawPose, XR_METERS_TO_WORLD, _scaledLocal);
+        _anchorM.makeTranslation(p.x, p.y + XR_RIG_FOOT_OFFSET_Y, p.z);
+        _worldCtrl.multiplyMatrices(_anchorM, _scaledLocal);
+        cam.updateMatrixWorld(true);
+        _invHead.copy(cam.matrixWorld).invert();
+        _rel.multiplyMatrices(_invHead, _worldCtrl);
+        c.matrix.copy(_rel);
+      }
+      c.updateMatrixWorld(true);
+    } else {
+      if (c.parent !== state.scene) {
+        if (c.parent) c.parent.remove(c);
+        state.scene.add(c);
+      }
+      _anchorM.makeTranslation(p.x, p.y + XR_RIG_FOOT_OFFSET_Y, p.z);
+      scaleMat4Translation(_rawPose, XR_METERS_TO_WORLD, _scaledLocal);
+      _worldCtrl.multiplyMatrices(_anchorM, _scaledLocal);
+      c.matrix.copy(_worldCtrl);
+      c.updateMatrixWorld(true);
+    }
   }
 }
 
@@ -294,7 +351,14 @@ function onVrSessionStart() {
   state.exitVrSprite = createExitVrSprite();
 
   state.scene.add(state.xrRig);
-  state.xrRig.add(state.camera);
+  const ts = state.xrTrackingScale;
+  if (ts) {
+    ts.scale.setScalar(XR_METERS_TO_WORLD);
+    state.xrRig.add(ts);
+    ts.add(state.camera);
+  } else {
+    state.xrRig.add(state.camera);
+  }
   if (state.exitVrSprite) state.camera.add(state.exitVrSprite);
 
   const r = state.renderer;
@@ -327,10 +391,16 @@ function onVrSessionEnd() {
     state.exitVrSprite = null;
   }
 
-  if (state.xrRig && state.camera) {
-    state.xrRig.remove(state.camera);
-    state.scene?.remove(state.xrRig);
+  if (state.xrTrackingScale) {
+    state.xrTrackingScale.scale.set(1, 1, 1);
+    if (state.camera) state.xrTrackingScale.remove(state.camera);
   }
+  if (state.xrRig && state.xrTrackingScale) {
+    state.xrRig.remove(state.xrTrackingScale);
+  } else if (state.xrRig && state.camera) {
+    state.xrRig.remove(state.camera);
+  }
+  state.scene?.remove(state.xrRig);
 
   const r = state.renderer;
   if (r) {

@@ -15,6 +15,8 @@ export function createCamera() {
   state.camera = new THREE.PerspectiveCamera(CAMERA_FOV, window.innerWidth / window.innerHeight, CAMERA_NEAR, CAMERA_FAR);
   state.camera.position.set(0, state.orbitHeight, state.orbitDistance);
   state.xrRig = new THREE.Group();
+  state.xrTrackingScale = new THREE.Group();
+  state.xrTrackingScale.name = 'xr-tracking-scale';
 }
 
 export function updateCamera() {
