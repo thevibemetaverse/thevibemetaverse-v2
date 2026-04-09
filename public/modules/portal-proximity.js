@@ -10,6 +10,9 @@ import { enterRoom } from './meeting-room.js';
 
 const PIETER_PORTAL_URL = 'https://portal.pieter.com';
 
+/** Cached vector to avoid per-frame allocation in checkProximity. */
+const _worldPos = new THREE.Vector3();
+
 /** Fun metaverse-themed room name slugs. */
 const ROOM_NAMES = [
   // Snow Crash
@@ -115,7 +118,7 @@ function buildPieterPortalUrl() {
  * @param {Array} registryPortals
  */
 export function checkProximity(player, customRefPortal, pieterPortal, registryPortals) {
-  const worldPos = new THREE.Vector3();
+  const worldPos = _worldPos;
 
   let refDist = Infinity;
   if (player && customRefPortal) {

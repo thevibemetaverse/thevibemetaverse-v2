@@ -181,23 +181,70 @@ export function initMeetingRoom() {
   front.position.z = 0.05;
   doorGroup.add(front);
 
-  // Load exit sign above the door
-  gltfLoader.load(
-    '/assets/models/exit_sing.glb',
-    (gltf) => {
-      const sign = gltf.scene;
-      const box = new THREE.Box3().setFromObject(sign);
-      const size = box.getSize(new THREE.Vector3());
-      const targetW = 4;
-      const scale = targetW / Math.max(size.x, 0.01);
-      sign.scale.setScalar(scale);
-      // Position above the door
-      sign.position.set(0, doorH / 2 + 0.5, -0.5);
-      doorGroup.add(sign);
-    },
-    undefined,
-    (err) => console.error('Failed to load exit sign:', err)
-  );
+  // Procedural exit sign above the door (replaces 1.6 MB GLB)
+  {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    // Green background
+    ctx.fillStyle = '#00a651';
+    ctx.fillRect(0, 0, 256, 128);
+    // White border
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(6, 6, 244, 116);
+    // Running figure (simplified)
+    ctx.fillStyle = '#ffffff';
+    // Head
+    ctx.beginPath();
+    ctx.arc(90, 30, 10, 0, Math.PI * 2);
+    ctx.fill();
+    // Body
+    ctx.fillRect(85, 40, 10, 25);
+    // Legs
+    ctx.beginPath();
+    ctx.moveTo(90, 65);
+    ctx.lineTo(75, 95);
+    ctx.lineTo(80, 95);
+    ctx.lineTo(90, 72);
+    ctx.lineTo(100, 95);
+    ctx.lineTo(105, 95);
+    ctx.lineTo(90, 65);
+    ctx.fill();
+    // Arms
+    ctx.beginPath();
+    ctx.moveTo(85, 45);
+    ctx.lineTo(70, 55);
+    ctx.lineTo(72, 60);
+    ctx.lineTo(85, 50);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(95, 45);
+    ctx.lineTo(110, 55);
+    ctx.lineTo(108, 60);
+    ctx.lineTo(95, 50);
+    ctx.fill();
+    // Arrow
+    ctx.fillRect(130, 52, 60, 10);
+    ctx.beginPath();
+    ctx.moveTo(190, 40);
+    ctx.lineTo(220, 57);
+    ctx.lineTo(190, 74);
+    ctx.closePath();
+    ctx.fill();
+    // EXIT text
+    ctx.font = 'bold 28px Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('EXIT', 155, 108);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const signGeo = new THREE.PlaneGeometry(4, 2);
+    const signMat = new THREE.MeshBasicMaterial({ map: texture });
+    const sign = new THREE.Mesh(signGeo, signMat);
+    sign.position.set(0, doorH / 2 + 0.5, -0.5);
+    doorGroup.add(sign);
+  }
 
   roomGroup.add(doorGroup);
 
