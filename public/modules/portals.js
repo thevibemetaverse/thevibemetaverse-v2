@@ -179,6 +179,8 @@ export async function initPortals(scene, player) {
   data = (data || []).filter((p) => p.url && !isSameDocumentDestination(p.url));
 
   const registryData = data.filter((p) => p.slug !== 'portal-network');
+  // Scatter slot i follows registry order; reverse so last registry entries get earlier slots.
+  registryData.reverse();
 
   // Strip portalImageUrl so the SDK doesn't try to load relative paths (404s).
   // We apply the images ourselves on the GLB PortalSurface after replacement.
