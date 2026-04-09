@@ -64,10 +64,15 @@ canvas { display: block; touch-action: none; }
   top: 20px;
   right: 20px;
   z-index: 15;
-  width: 180px;
+  /* Snug width; grows with typing where supported (field-sizing) */
+  field-sizing: content;
+  min-width: calc(19ch + 26px);
+  max-width: calc(100vw - 40px);
   padding: 8px 12px;
   font-family: 'Courier New', monospace;
-  font-size: 14px;
+  /* 16px+ prevents iOS Safari from auto-zooming on focus */
+  font-size: 16px;
+  text-align: center;
   color: #fff;
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -81,6 +86,7 @@ canvas { display: block; touch-action: none; }
   background: rgba(0, 0, 0, 0.6);
 }
 #player-name-input::placeholder {
+  text-align: center;
   color: rgba(255, 255, 255, 0.4);
 }
 
