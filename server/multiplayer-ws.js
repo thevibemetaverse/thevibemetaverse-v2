@@ -38,7 +38,7 @@ export function attachMultiplayerWebSocket(server) {
 
   /**
    * Room state tracked on the server.
-   * @type {Map<string, { players: Set<import('ws').WebSocket>, startTime: number | null, gameUrl: string }>}
+   * @type {Map<string, { players: Set<import('ws').WebSocket>, host: import('ws').WebSocket | null, startTime: number | null, gameUrl: string }>}
    */
   const rooms = new Map();
 
@@ -61,20 +61,31 @@ export function attachMultiplayerWebSocket(server) {
     }
   }
 
+  function countdownRemaining(room) {
+    if (!room.startTime) return COUNTDOWN_SECONDS;
+    return Math.max(0, COUNTDOWN_SECONDS - Math.floor((Date.now() - room.startTime) / 1000));
+  }
+
   /** Build a room_state snapshot and send it to ALL connected clients. */
   function broadcastRoomInfo() {
     const roomList = [];
     for (const [roomId, room] of rooms) {
       if (room.players.size === 0) continue;
-      const remaining = room.startTime
-        ? Math.max(0, COUNTDOWN_SECONDS - Math.floor((Date.now() - room.startTime) / 1000))
-        : COUNTDOWN_SECONDS;
       const players = [];
+      const hostMeta = room.host ? sockets.get(room.host) : null;
       for (const ws of room.players) {
         const m = sockets.get(ws);
         if (m) players.push({ id: m.id, name: m.name });
       }
-      roomList.push({ roomId, countdown: remaining, playerCount: room.players.size, players, gameUrl: room.gameUrl });
+      roomList.push({
+        roomId,
+        countdown: countdownRemaining(room),
+        playerCount: room.players.size,
+        players,
+        gameUrl: room.gameUrl,
+        hostId: hostMeta?.id || null,
+        hostName: hostMeta?.name || null,
+      });
     }
     broadcast({ type: 'room_info', rooms: roomList }, null);
   }
@@ -82,7 +93,7 @@ export function attachMultiplayerWebSocket(server) {
   function getOrCreateRoom(roomId, gameUrl) {
     let room = rooms.get(roomId);
     if (!room) {
-      room = { players: new Set(), startTime: null, gameUrl: gameUrl || '' };
+      room = { players: new Set(), host: null, startTime: null, gameUrl: gameUrl || '' };
       rooms.set(roomId, room);
     }
     if (gameUrl && !room.gameUrl) room.gameUrl = gameUrl;
@@ -102,7 +113,10 @@ export function attachMultiplayerWebSocket(server) {
     room.players.add(ws);
     meta.room = roomId;
 
-    // Start countdown if first player
+    // First player becomes the host and starts the countdown
+    if (!room.host || !room.players.has(room.host)) {
+      room.host = ws;
+    }
     if (room.players.size === 1) {
       room.startTime = Date.now();
     }
@@ -116,18 +130,43 @@ export function attachMultiplayerWebSocket(server) {
       const m = sockets.get(rws);
       if (m && rws !== ws) roomPlayers.push({ id: m.id, avatarUrl: m.avatarUrl, name: m.name });
     }
-    const remaining = room.startTime
-      ? Math.max(0, COUNTDOWN_SECONDS - Math.floor((Date.now() - room.startTime) / 1000))
-      : COUNTDOWN_SECONDS;
+    const hostMeta = room.host ? sockets.get(room.host) : null;
     ws.send(JSON.stringify({
       type: 'room_welcome',
       roomId,
-      countdown: remaining,
+      countdown: countdownRemaining(room),
       players: roomPlayers,
       gameUrl: room.gameUrl,
+      hostId: hostMeta?.id || null,
+      hostName: hostMeta?.name || null,
     }));
 
+    // Broadcast updated host info to all room members
+    broadcastRoomHost(room, roomId);
     broadcastRoomInfo();
+  }
+
+  /** Launch the game for all players in a room and reset it. */
+  function launchRoom(roomId, room) {
+    broadcastToRoom({ type: 'room_launch', roomId, gameUrl: room.gameUrl }, roomId, null);
+    room.host = null;
+    room.startTime = null;
+    for (const client of room.players) {
+      const m = sockets.get(client);
+      if (m) m.room = 'lobby';
+    }
+    room.players.clear();
+    broadcastRoomInfo();
+  }
+
+  /** Notify all players in a room who the current host is. */
+  function broadcastRoomHost(room, roomId) {
+    const hostMeta = room.host ? sockets.get(room.host) : null;
+    broadcastToRoom({
+      type: 'room_host',
+      hostId: hostMeta?.id || null,
+      hostName: hostMeta?.name || null,
+    }, roomId, null);
   }
 
   function leaveRoom(ws, meta) {
@@ -137,9 +176,13 @@ export function attachMultiplayerWebSocket(server) {
     const room = rooms.get(roomId);
     if (room) {
       room.players.delete(ws);
-      // Reset countdown if room empties
       if (room.players.size === 0) {
         room.startTime = null;
+      }
+      // Pass host to next player if the host left
+      if (room.host === ws) {
+        room.host = room.players.size > 0 ? room.players.values().next().value : null;
+        if (room.host) broadcastRoomHost(room, roomId);
       }
       broadcastToRoom({ type: 'player_left', id: meta.id }, roomId, null);
     }
@@ -176,24 +219,10 @@ export function attachMultiplayerWebSocket(server) {
 
   // Countdown tick — check all active rooms every second
   setInterval(() => {
-    const now = Date.now();
     for (const [roomId, room] of rooms) {
       if (room.players.size === 0 || !room.startTime) continue;
-      const elapsed = Math.floor((now - room.startTime) / 1000);
-      const remaining = Math.max(0, COUNTDOWN_SECONDS - elapsed);
-
-      if (remaining <= 0) {
-        // Launch the game for all players in this room
-        broadcastToRoom({ type: 'room_launch', roomId, gameUrl: room.gameUrl }, roomId, null);
-        // Reset the room
-        room.startTime = null;
-        // Move all players back to lobby
-        for (const ws of room.players) {
-          const m = sockets.get(ws);
-          if (m) m.room = 'lobby';
-        }
-        room.players.clear();
-        broadcastRoomInfo();
+      if (countdownRemaining(room) <= 0) {
+        launchRoom(roomId, room);
       }
     }
     // Periodically broadcast room info so portal displays stay fresh
@@ -231,10 +260,7 @@ export function attachMultiplayerWebSocket(server) {
         const roomList = [];
         for (const [roomId, room] of rooms) {
           if (room.players.size === 0) continue;
-          const remaining = room.startTime
-            ? Math.max(0, COUNTDOWN_SECONDS - Math.floor((Date.now() - room.startTime) / 1000))
-            : COUNTDOWN_SECONDS;
-          roomList.push({ roomId, countdown: remaining, playerCount: room.players.size, gameUrl: room.gameUrl });
+          roomList.push({ roomId, countdown: countdownRemaining(room), playerCount: room.players.size, gameUrl: room.gameUrl });
         }
 
         ws.send(
@@ -281,6 +307,15 @@ export function attachMultiplayerWebSocket(server) {
 
       if (msg.type === 'leave_room') {
         leaveRoom(ws, meta);
+        return;
+      }
+
+      if (msg.type === 'start_meeting') {
+        const roomId = meta.room;
+        if (roomId === 'lobby') return;
+        const room = rooms.get(roomId);
+        if (!room || room.host !== ws) return; // only host can start
+        launchRoom(roomId, room);
         return;
       }
 

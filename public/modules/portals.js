@@ -188,7 +188,7 @@ export async function initPortals(scene, player) {
     const portal = portals[i];
     const roomId = portal.data.slug || (portal.data.title || `portal-${i}`).replace(/\s+/g, '-').toLowerCase();
     const info = createInfoSprite();
-    info.sprite.position.set(0, -3.5, 0); // below portal label (in local group space, scaled)
+    info.sprite.position.set(0, 3.5, 0); // above portal (in local group space, scaled)
     portal.group.add(info.sprite);
     portalInfoSprites.set(roomId, info);
   }
@@ -196,7 +196,7 @@ export async function initPortals(scene, player) {
   // Info sprite for Pieter portal
   if (pieterPortal) {
     const info = createInfoSprite();
-    info.sprite.position.set(0, -3.5, 0);
+    info.sprite.position.set(0, 3.5, 0);
     pieterPortal.group.add(info.sprite);
     portalInfoSprites.set('vibeverse-portal', info);
   }

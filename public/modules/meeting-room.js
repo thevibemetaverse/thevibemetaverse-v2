@@ -33,6 +33,13 @@ let screenTexture = null;
 let screenDirty = true;
 let lastCountdown = -1;
 let lastPlayerCount = -1;
+let lastHostName = '';
+let lastIsHost = false;
+let meetingStarted = false;
+
+/** Raycaster for detecting clicks on the wall screen. */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
 
 /** The portal position the player entered from, so we can return them nearby. */
 let entryReturnZ = PLAYER_SPAWN_Z;
@@ -53,6 +60,37 @@ export function initMeetingRoom() {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (state.currentRoom !== 'lobby' && e.code === 'KeyC') {
       copyInviteLink();
+    }
+  });
+
+  // Click handler for the wall screen start button
+  window.addEventListener('click', (e) => {
+    if (state.currentRoom === 'lobby' || !wallScreen || !state.camera || meetingStarted) return;
+    if (!state.isRoomHost) return;
+    pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(pointer, state.camera);
+    const hits = raycaster.intersectObject(wallScreen);
+    if (hits.length > 0) {
+      meetingStarted = true;
+      screenDirty = true;
+      sendRoomMessage({ type: 'start_meeting' });
+    }
+  });
+
+  // Hover handler — show not-allowed cursor for non-host, pointer for host
+  window.addEventListener('mousemove', (e) => {
+    if (state.currentRoom === 'lobby' || !wallScreen || !state.camera || meetingStarted) {
+      return;
+    }
+    pointer.x = (e.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(pointer, state.camera);
+    const hits = raycaster.intersectObject(wallScreen);
+    if (hits.length > 0) {
+      document.body.style.cursor = state.isRoomHost ? 'pointer' : 'not-allowed';
+    } else if (state.currentRoom !== 'lobby') {
+      document.body.style.cursor = '';
     }
   });
 
@@ -84,7 +122,7 @@ export function initMeetingRoom() {
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
   roomGroup.add(ambientLight);
 
-  // Create wall screen for countdown display
+  // Create wall screen for meeting info display
   screenCanvas = document.createElement('canvas');
   screenCanvas.width = 512;
   screenCanvas.height = 256;
@@ -98,7 +136,7 @@ export function initMeetingRoom() {
   wallScreen.position.set(-2.5, 12.5, -30.9);
   roomGroup.add(wallScreen);
 
-  // Recessed door cutout on the wall, to the right of the countdown screen
+  // Recessed door cutout on the wall, to the right of the screen
   const doorW = 6;
   const doorH = 12;
   const doorDepth = 3;
@@ -221,7 +259,7 @@ export function initMeetingRoom() {
   );
 
   // Check for direct room link
-  const roomMatch = window.location.pathname.match(/^\/room\/(.+)$/);
+  const roomMatch = window.location.pathname.match(/^\/meeting-room\/(.+)$/);
   if (roomMatch) {
     const roomId = decodeURIComponent(roomMatch[1]);
     // Delay join until WS is connected — multiplayer.js will handle this via checkDirectRoomLink()
@@ -280,7 +318,7 @@ export function enterRoom(roomId, gameUrl, gameTitle) {
   }
 
   // Update browser URL to the room link
-  const roomUrl = `/room/${encodeURIComponent(roomId)}`;
+  const roomUrl = `/meeting-room/${encodeURIComponent(roomId)}`;
   window.history.pushState({ roomId }, '', roomUrl);
 
   // Show copy link UI
@@ -307,6 +345,10 @@ export function exitRoom() {
   state.gameState = 'EXPLORING';
   state.roomPlayers = [];
   state.roomCountdown = null;
+  state.roomHostName = null;
+  state.isRoomHost = false;
+  meetingStarted = false;
+  document.body.style.cursor = '';
 
   // Show lobby, hide room
   if (roomGroup) roomGroup.visible = false;
@@ -340,11 +382,19 @@ export function exitRoom() {
 export function updateMeetingRoom(_delta) {
   if (state.currentRoom === 'lobby') return;
 
-  // Check if countdown or player list changed
-  if (state.roomCountdown !== lastCountdown || state.roomPlayers.length !== lastPlayerCount) {
+  // Check if countdown, host, or player list changed
+  const hostName = state.roomHostName || '';
+  if (
+    state.roomCountdown !== lastCountdown ||
+    hostName !== lastHostName ||
+    state.roomPlayers.length !== lastPlayerCount ||
+    state.isRoomHost !== lastIsHost
+  ) {
     screenDirty = true;
     lastCountdown = state.roomCountdown;
+    lastHostName = hostName;
     lastPlayerCount = state.roomPlayers.length;
+    lastIsHost = state.isRoomHost;
   }
 
   // Update wall screen
@@ -364,7 +414,7 @@ export function updateMeetingRoom(_delta) {
   }
 }
 
-/** Render countdown + player list onto the wall screen canvas. */
+/** Render host start button + player list onto the wall screen canvas. */
 function renderScreen() {
   if (!screenCtx || !screenCanvas || !screenTexture) return;
   const ctx = screenCtx;
@@ -374,8 +424,6 @@ function renderScreen() {
   // Background — black to match the TV screen
   ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, w, h);
-
-  const secs = state.roomCountdown ?? 60;
 
   // Player list
   const names = state.roomPlayers.map((p) => p.name);
@@ -392,40 +440,70 @@ function renderScreen() {
   // Attendees line
   const attendeesStr = names.length > 0 ? 'Attendees: ' + names.join(', ') : '';
 
-  if (secs <= 0) {
-    // Today's Agenda
+  const hostName = state.roomHostName || state.localPlayerName || 'Host';
+  const secs = state.roomCountdown ?? 60;
+
+  if (meetingStarted || secs <= 0) {
+    // Host line
     ctx.fillStyle = '#aaa';
-    ctx.font = '18px Courier New, monospace';
-    ctx.fillText("Today's Agenda: Play " + gameTitle, w / 2, 40);
+    ctx.font = '16px Courier New, monospace';
+    ctx.fillText('Meeting Host: ' + hostName, w / 2, 30);
+
+    // Today's Agenda
+    ctx.fillText("Today's Agenda: Play " + gameTitle, w / 2, 55);
 
     // Meeting Started!
     ctx.fillStyle = '#00ff88';
     ctx.font = 'bold 56px Courier New, monospace';
-    ctx.fillText('Meeting Started!', w / 2, 110);
+    ctx.fillText('Meeting Started!', w / 2, 130);
 
     // Attendees
     ctx.fillStyle = '#fff';
     ctx.font = '16px Courier New, monospace';
-    ctx.fillText(attendeesStr, w / 2, 175);
+    ctx.fillText(attendeesStr, w / 2, 200);
   } else {
-    // Today's Agenda
+    // Host line
     ctx.fillStyle = '#aaa';
-    ctx.font = '18px Courier New, monospace';
-    ctx.fillText("Today's Agenda: Play " + gameTitle, w / 2, 40);
+    ctx.font = '16px Courier New, monospace';
+    ctx.fillText('Meeting Host: ' + hostName, w / 2, 25);
 
-    // Big countdown timer
+    // Today's Agenda
+    ctx.fillText("Today's Agenda: Play " + gameTitle, w / 2, 48);
+
+    // Countdown timer
     const minutes = Math.floor(secs / 60);
     const seconds = secs % 60;
     const timeStr = `${minutes}:${String(seconds).padStart(2, '0')}`;
 
     ctx.fillStyle = secs <= 10 ? '#ff4444' : '#00ff88';
-    ctx.font = 'bold 80px Courier New, monospace';
-    ctx.fillText(timeStr, w / 2, 115);
+    ctx.font = 'bold 64px Courier New, monospace';
+    ctx.fillText(timeStr, w / 2, 100);
+
+    // Start early button (host) or waiting message (non-host)
+    if (state.isRoomHost) {
+      const btnW = 300;
+      const btnH = 44;
+      const btnX = (w - btnW) / 2;
+      const btnY = 145;
+
+      ctx.fillStyle = '#00ff88';
+      ctx.beginPath();
+      ctx.roundRect(btnX, btnY, btnW, btnH, 8);
+      ctx.fill();
+
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 22px Courier New, monospace';
+      ctx.fillText('Start Now', w / 2, btnY + btnH / 2);
+    } else {
+      ctx.fillStyle = '#888';
+      ctx.font = '16px Courier New, monospace';
+      ctx.fillText(hostName + ' can start early', w / 2, 165);
+    }
 
     // Attendees
     ctx.fillStyle = '#fff';
-    ctx.font = '16px Courier New, monospace';
-    ctx.fillText(attendeesStr, w / 2, 185);
+    ctx.font = '14px Courier New, monospace';
+    ctx.fillText(attendeesStr, w / 2, 220);
   }
 
   screenTexture.needsUpdate = true;
@@ -435,7 +513,7 @@ let copiedFeedbackTimer = null;
 let showCopiedFeedback = false;
 
 function copyInviteLink() {
-  const url = `${window.location.origin}/room/${encodeURIComponent(state.currentRoom)}`;
+  const url = `${window.location.origin}/meeting-room/${encodeURIComponent(state.currentRoom)}`;
   navigator.clipboard.writeText(url).then(() => {
     showCopiedFeedback = true;
     screenDirty = true;
@@ -452,7 +530,7 @@ let copyLinkContainer = null;
 
 function showCopyLinkUI() {
   const roomCode = state.currentRoom;
-  const inviteUrl = `${window.location.origin}/room/${encodeURIComponent(roomCode)}`;
+  const inviteUrl = `${window.location.origin}/meeting-room/${encodeURIComponent(roomCode)}`;
 
   if (copyLinkContainer) {
     // Update with new room code
@@ -527,6 +605,12 @@ let _ws = null;
  */
 export function setRoomWebSocket(ws) {
   _ws = ws;
+}
+
+/** Called when the server broadcasts room_launch (host started the meeting). */
+export function onMeetingStarted() {
+  meetingStarted = true;
+  screenDirty = true;
 }
 
 /** @param {object} msg */

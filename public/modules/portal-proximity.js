@@ -53,11 +53,11 @@ const ROOM_NAMES = [
   'touch-grass',
 ];
 
-/** Pick a random fun room name. */
-function uniqueRoomId(_prefix) {
+/** Build a room ID that starts with the portal slug so sprite matching works. */
+function uniqueRoomId(prefix) {
   const name = ROOM_NAMES[Math.floor(Math.random() * ROOM_NAMES.length)];
   const rand = Math.random().toString(36).slice(2, 5);
-  return `${name}-${rand}`;
+  return `${prefix}-${name}-${rand}`;
 }
 
 /** Ground-plane distance — portal groups are elevated in Y, so 3D distance never matches tuning. */

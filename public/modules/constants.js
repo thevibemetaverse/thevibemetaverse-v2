@@ -88,7 +88,6 @@ export const SHADOW_NORMAL_BIAS = 0.02;
 
 // -- Meeting Room --
 export const MEETING_ROOM_MODEL_PATH = 'assets/models/meeting_room.glb';
-export const MEETING_ROOM_COUNTDOWN_SECONDS = 60;
 /** XZ distance to exit door trigger. */
 export const MEETING_ROOM_EXIT_DIST = 3;
 /** Player spawn position inside the meeting room. */

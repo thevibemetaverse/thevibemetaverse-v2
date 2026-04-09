@@ -78,8 +78,8 @@ if (existsSync(siblingPortals)) {
 }
 app.use('/vendor/portals', express.static(join(__dirname, 'vendor', 'portals')));
 
-// Direct room invite links — serve index.html for /room/:roomId
-app.get('/room/:roomId', (req, res) => {
+// Direct room invite links — serve index.html for /meeting-room/:roomId
+app.get('/meeting-room/:roomId', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'index.html'));
 });
 

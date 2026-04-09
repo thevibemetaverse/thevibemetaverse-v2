@@ -7,7 +7,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from 
  */
 
 /**
- * @typedef {Object} RoomCountdownInfo
+ * @typedef {Object} RoomPortalInfo
  * @property {number} countdown
  * @property {number} playerCount
  */
@@ -73,9 +73,11 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from 
  * @property {string} currentRoomGameTitle - Human-readable game title for the current room.
  * @property {THREE.Group | null} lobbyGroup - Container for all lobby objects.
  * @property {THREE.Group | null} meetingRoomGroup - Container for meeting room objects.
- * @property {Map<string, RoomCountdownInfo>} roomCountdowns - Per-room countdown info for portal display.
+ * @property {Map<string, RoomPortalInfo>} roomCountdowns - Per-room info for portal display.
  * @property {Array<{id: string, name: string}>} roomPlayers - Players in the current room.
  * @property {number | null} roomCountdown - Countdown seconds for current room.
+ * @property {string | null} roomHostName - Display name of the current room host.
+ * @property {boolean} isRoomHost - Whether the local player is the room host.
  *
  * @property {DomRefs} dom
  */
@@ -125,6 +127,8 @@ export const state = {
   roomCountdowns: new Map(),
   roomPlayers: [],
   roomCountdown: null,
+  roomHostName: null,
+  isRoomHost: false,
 
   /** @type {string | null} */
   _pendingDirectRoomId: null,

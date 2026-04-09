@@ -14,7 +14,7 @@ import {
   setMovingAnimationForContext,
 } from './character.js';
 import { createNametagSprite, updateNametagText } from './nametag.js';
-import { setRoomWebSocket, enterRoom } from './meeting-room.js';
+import { setRoomWebSocket, enterRoom, onMeetingStarted } from './meeting-room.js';
 
 /** @type {WebSocket | null} */
 let ws = null;
@@ -131,7 +131,7 @@ function handleMessage(raw) {
           ensureRemotePlayer(p.id, p.avatarUrl, p.name || DEFAULT_PLAYER_NAME);
         }
       }
-      // Populate initial room countdowns from welcome
+      // Populate initial room info from welcome
       if (Array.isArray(msg.rooms)) {
         for (const r of msg.rooms) {
           if (r.roomId) {
@@ -209,7 +209,7 @@ function handleMessage(raw) {
       break;
     }
     case 'room_info': {
-      // Update room countdown info for portal display + current room
+      // Update room info for portal display + current room
       if (Array.isArray(msg.rooms)) {
         state.roomCountdowns.clear();
         for (const r of msg.rooms) {
@@ -218,7 +218,6 @@ function handleMessage(raw) {
               countdown: r.countdown ?? 60,
               playerCount: r.playerCount ?? 0,
             });
-            // Update current room countdown
             if (r.roomId === state.currentRoom) {
               state.roomCountdown = r.countdown ?? null;
               state.roomPlayers = Array.isArray(r.players) ? r.players : [];
@@ -229,7 +228,7 @@ function handleMessage(raw) {
       break;
     }
     case 'room_welcome': {
-      // Response to join_room — populate room player list
+      // Response to join_room — populate room player list + host info
       if (Array.isArray(msg.players)) {
         for (const p of msg.players) {
           if (p?.id && p.id !== state.localPlayerId) {
@@ -237,29 +236,25 @@ function handleMessage(raw) {
           }
         }
       }
-      state.roomCountdown = typeof msg.countdown === 'number' ? msg.countdown : 60;
       state.roomPlayers = Array.isArray(msg.players) ? msg.players : [];
+      state.roomCountdown = typeof msg.countdown === 'number' ? msg.countdown : 60;
+      state.roomHostName = msg.hostName || null;
+      state.isRoomHost = !!(msg.hostId && msg.hostId === state.localPlayerId);
+      console.log('[room_welcome] hostId:', msg.hostId, 'localId:', state.localPlayerId, 'isHost:', state.isRoomHost, 'hostName:', state.roomHostName);
       break;
     }
-    case 'room_state': {
-      // Periodic countdown update from server — update both portal info and current room
-      if (msg.roomId) {
-        state.roomCountdowns.set(msg.roomId, {
-          countdown: msg.countdown ?? 60,
-          playerCount: msg.playerCount ?? 0,
-        });
-      }
-      if (msg.roomId === state.currentRoom) {
-        state.roomCountdown = typeof msg.countdown === 'number' ? msg.countdown : null;
-        state.roomPlayers = Array.isArray(msg.players) ? msg.players : [];
-      }
+    case 'room_host': {
+      // Host changed (e.g. previous host left)
+      state.roomHostName = msg.hostName || null;
+      state.isRoomHost = !!(msg.hostId && msg.hostId === state.localPlayerId);
+      console.log('[room_host] hostId:', msg.hostId, 'localId:', state.localPlayerId, 'isHost:', state.isRoomHost, 'hostName:', state.roomHostName);
       break;
     }
     case 'room_launch': {
-      // Game countdown hit zero — show "Meeting Started!" then open game
+      // Meeting launched (host clicked Start or countdown expired)
       state.roomCountdown = 0;
+      onMeetingStarted();
       if (msg.gameUrl) {
-        // Brief delay so players see the "Meeting Started!" screen
         setTimeout(() => {
           window.open(msg.gameUrl, '_blank');
         }, 1500);
