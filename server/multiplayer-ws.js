@@ -4,7 +4,6 @@ import { WebSocketServer } from 'ws';
 const WORLD_LIMIT = 300;
 const STALE_MS = 45_000;
 const PRUNE_INTERVAL_MS = 10_000;
-const DEFAULT_PLAYER_NAME = 'metaverse-explorer';
 const MAX_NAME_LENGTH = 20;
 const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
 
@@ -82,7 +81,10 @@ export function attachMultiplayerWebSocket(server) {
         if (meta) return;
         const id = randomUUID();
         const avatarUrl = typeof msg.avatarUrl === 'string' ? msg.avatarUrl : '';
-        const name = typeof msg.name === 'string' ? msg.name.trim().slice(0, MAX_NAME_LENGTH) || DEFAULT_PLAYER_NAME : DEFAULT_PLAYER_NAME;
+        const name =
+          typeof msg.name === 'string'
+            ? msg.name.trim().slice(0, MAX_NAME_LENGTH)
+            : '';
         sockets.set(ws, { id, avatarUrl, name, lastSeen: Date.now() });
 
         const others = [];
@@ -98,7 +100,7 @@ export function attachMultiplayerWebSocket(server) {
           })
         );
         broadcast({ type: 'player_joined', id, avatarUrl, name }, ws);
-        notifyDiscord(name, sockets.size);
+        notifyDiscord(name || 'Anonymous', sockets.size);
         return;
       }
 
@@ -117,7 +119,10 @@ export function attachMultiplayerWebSocket(server) {
       }
 
       if (msg.type === 'name') {
-        const next = typeof msg.name === 'string' ? msg.name.trim().slice(0, MAX_NAME_LENGTH) || DEFAULT_PLAYER_NAME : DEFAULT_PLAYER_NAME;
+        const next =
+          typeof msg.name === 'string'
+            ? msg.name.trim().slice(0, MAX_NAME_LENGTH)
+            : meta.name;
         meta.name = next;
         broadcast({ type: 'player_name', id: meta.id, name: next }, ws);
         return;

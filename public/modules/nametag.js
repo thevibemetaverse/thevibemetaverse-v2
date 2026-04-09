@@ -1,11 +1,11 @@
 // @ts-check
 import * as THREE from 'three';
 import { state } from './state.js';
-import { PLAYER_TARGET_HEIGHT, DEFAULT_PLAYER_NAME } from './constants.js';
+import { PLAYER_TARGET_HEIGHT } from './constants.js';
 
 const NAMETAG_Y = PLAYER_TARGET_HEIGHT + 1.0;
-/** Baseline texture width used with {@link SPRITE_SCALE_X} (legacy 512px sprites). */
-const REFERENCE_CANVAS_WIDTH = 512;
+/** Fixed canvas width — never changes, so Three.js texture uploads stay stable. */
+const CANVAS_W = 512;
 const CANVAS_H = 80;
 const FONT = 'bold 32px Courier New, monospace';
 const SPRITE_SCALE_X = 8;
@@ -14,6 +14,21 @@ const NAME_BROADCAST_DEBOUNCE_MS = 300;
 const PAD_X = 24;
 const PAD_Y = 8;
 const RADIUS = 16;
+
+/** 2D context used only for measureText — never the same canvas as the sprite texture. */
+const measureCtx = document.createElement('canvas').getContext('2d');
+
+/**
+ * Measure text width on a dedicated canvas so metrics are never affected by the
+ * same 2D context that backs a WebGL CanvasTexture (some browsers mis-report
+ * width there, which clips long names and distorts the sprite).
+ * @param {string} text
+ */
+function measureTextWidth(text) {
+  if (!measureCtx) return 0;
+  measureCtx.font = FONT;
+  return measureCtx.measureText(text).width;
+}
 
 /**
  * Draw a rounded rectangle path.
@@ -49,22 +64,37 @@ function renderNameCanvas(name, existingCanvas) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return canvas;
 
-  const displayName = name || DEFAULT_PLAYER_NAME;
-  ctx.font = FONT;
-  const metrics = ctx.measureText(displayName);
-  const textW = metrics.width;
-  const pillW = textW + PAD_X * 2;
-  const w = Math.ceil(Math.min(Math.max(pillW + 4, 128), 2048));
+  let displayName = name ?? '';
+  let textW = measureTextWidth(displayName);
 
-  canvas.width = w;
+  // Truncate with ellipsis if text exceeds available space.
+  const maxTextW = CANVAS_W - PAD_X * 2;
+  if (textW > maxTextW) {
+    const ellipsis = '…';
+    let low = 0;
+    let high = displayName.length;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      const candidate = displayName.slice(0, mid) + ellipsis;
+      if (measureTextWidth(candidate) <= maxTextW) low = mid;
+      else high = mid - 1;
+    }
+    displayName = displayName.slice(0, low) + ellipsis;
+    textW = measureTextWidth(displayName);
+  }
+
+  // Fixed canvas size — never changes, avoiding Three.js texture resize issues.
+  canvas.width = CANVAS_W;
   canvas.height = CANVAS_H;
 
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.font = FONT;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
+  const pillW = textW + PAD_X * 2;
   const pillH = CANVAS_H - PAD_Y * 2;
-  const pillX = (w - pillW) / 2;
+  const pillX = (CANVAS_W - pillW) / 2;
   const pillY = PAD_Y;
 
   // Pill background with subtle gradient
@@ -86,9 +116,9 @@ function renderNameCanvas(name, existingCanvas) {
   ctx.shadowBlur = 4;
   ctx.shadowOffsetY = 1;
 
-  // White text
+  // White text, always centered
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(displayName, w / 2, CANVAS_H / 2);
+  ctx.fillText(displayName, CANVAS_W / 2, CANVAS_H / 2);
 
   // Reset shadow
   ctx.shadowColor = 'transparent';
@@ -96,18 +126,6 @@ function renderNameCanvas(name, existingCanvas) {
   ctx.shadowOffsetY = 0;
 
   return canvas;
-}
-
-/**
- * Keep world-space texel density consistent when the canvas width changes.
- * @param {THREE.Sprite} sprite
- */
-function syncNametagSpriteScale(sprite) {
-  const material = /** @type {THREE.SpriteMaterial} */ (sprite.material);
-  const texture = /** @type {THREE.CanvasTexture} */ (material.map);
-  const canvas = /** @type {HTMLCanvasElement} */ (texture.image);
-  const scaleX = SPRITE_SCALE_X * (canvas.width / REFERENCE_CANVAS_WIDTH);
-  sprite.scale.set(scaleX, SPRITE_SCALE_Y, 1);
 }
 
 /**
@@ -125,7 +143,7 @@ export function createNametagSprite(name) {
     transparent: true,
   });
   const sprite = new THREE.Sprite(material);
-  syncNametagSpriteScale(sprite);
+  sprite.scale.set(SPRITE_SCALE_X, SPRITE_SCALE_Y, 1);
   sprite.position.set(0, NAMETAG_Y, 0);
   sprite.renderOrder = 999;
   return sprite;
@@ -140,7 +158,6 @@ export function updateNametagText(sprite, name) {
   const material = /** @type {THREE.SpriteMaterial} */ (sprite.material);
   const texture = /** @type {THREE.CanvasTexture} */ (material.map);
   renderNameCanvas(name, /** @type {HTMLCanvasElement} */ (texture.image));
-  syncNametagSpriteScale(sprite);
   texture.needsUpdate = true;
 }
 
@@ -176,7 +193,7 @@ export function initNametag({ onNameChanged }) {
 
   // Live update as user types
   input.addEventListener('input', () => {
-    const name = input.value.trim() || DEFAULT_PLAYER_NAME;
+    const name = input.value.trim();
     state.localPlayerName = name;
     if (localNametag) {
       updateNametagText(localNametag, name);
