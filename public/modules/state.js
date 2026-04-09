@@ -93,6 +93,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT, DEFAULT_PLAYER_NAME } from 
  * @property {number | null} roomCountdown - Countdown seconds for current room.
  * @property {string | null} roomHostName - Display name of the current room host.
  * @property {boolean} isRoomHost - Whether the local player is the room host.
+ * @property {string | null} _pendingDirectRoomId - Room ID parsed from URL before WS connects.
  *
  * @property {DomRefs} dom
  */

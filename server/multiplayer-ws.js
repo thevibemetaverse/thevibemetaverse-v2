@@ -156,6 +156,7 @@ export function attachMultiplayerWebSocket(server) {
       if (m) m.room = 'lobby';
     }
     room.players.clear();
+    rooms.delete(roomId);
     broadcastRoomInfo();
   }
 
@@ -177,7 +178,7 @@ export function attachMultiplayerWebSocket(server) {
     if (room) {
       room.players.delete(ws);
       if (room.players.size === 0) {
-        room.startTime = null;
+        rooms.delete(roomId);
       }
       // Pass host to next player if the host left
       if (room.host === ws) {
@@ -226,7 +227,7 @@ export function attachMultiplayerWebSocket(server) {
       }
     }
     // Periodically broadcast room info so portal displays stay fresh
-    broadcastRoomInfo();
+    if (rooms.size > 0) broadcastRoomInfo();
   }, COUNTDOWN_TICK_MS);
 
   wss.on('connection', (ws) => {

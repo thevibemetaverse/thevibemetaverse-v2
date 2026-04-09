@@ -285,12 +285,6 @@ export function initMeetingRoom() {
       const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
       model.position.set(-scaledCenter.x, -scaledBox.min.y, -scaledCenter.z);
 
-      model.traverse((child) => {
-        if (!child.isMesh) return;
-        child.castShadow = true;
-        child.receiveShadow = true;
-      });
-
       roomGroup.add(model);
       modelLoaded = true;
 
@@ -556,20 +550,9 @@ function renderScreen() {
   screenTexture.needsUpdate = true;
 }
 
-let copiedFeedbackTimer = null;
-let showCopiedFeedback = false;
-
 function copyInviteLink() {
   const url = `${window.location.origin}/meeting-room/${encodeURIComponent(state.currentRoom)}`;
-  navigator.clipboard.writeText(url).then(() => {
-    showCopiedFeedback = true;
-    screenDirty = true;
-    if (copiedFeedbackTimer) clearTimeout(copiedFeedbackTimer);
-    copiedFeedbackTimer = setTimeout(() => {
-      showCopiedFeedback = false;
-      screenDirty = true;
-    }, 2000);
-  }).catch(() => {});
+  navigator.clipboard.writeText(url).catch(() => {});
 }
 
 /** @type {HTMLElement | null} */
