@@ -49,7 +49,7 @@ export const TREE_CENTER_CLEAR_RADIUS = 110;
 export const PORTAL_GLOBAL_X_OFFSET = -25;
 export const PORTAL_ROW_Z = -12;
 /** Horizontal gap between portal slots (wider = clearer of avatar arms in T-pose). */
-export const PORTAL_ROW_SPACING = 18;
+export const PORTAL_ROW_SPACING = 40;
 /** Shift the whole row in +X (negative = left on screen) so the right portal clears the Jam widget. */
 export const PORTAL_ROW_OFFSET_X = -5;
 /** Extra +X on the Pieter torus only (pushes it further right vs the shader row). */
@@ -65,6 +65,8 @@ export const PORTAL_ENTER_DIST = 1.5;
 export const PORTAL_CUSTOM_REF_ENTER_DIST = 1.5;
 /** World Y for portal groups; slightly raised so rings sit above shoulder height after mesh offset × scale. */
 export const PORTAL_PIETER_ELEVATION_Y = 4.9;
+/** Extra label height above the top of a replacement GLB portal model (fraction of model height). */
+export const PORTAL_LABEL_Y_OFFSET_RATIO = 0.25;
 /** Used for the custom return portal (?portal) — right flank X (see PORTAL_ROW_OFFSET_X). */
 export const PORTAL_PIETER_X = 18;
 /**

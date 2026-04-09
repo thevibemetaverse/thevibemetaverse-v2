@@ -135,15 +135,20 @@ export function createPortalMesh(opts = {}) {
   const ctx = canvas.getContext('2d');
   ctx.font = 'bold 32px monospace';
   ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
   const hex = '#' + color1.getHexString();
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+  ctx.lineWidth = 8;
   ctx.fillStyle = hex;
   ctx.shadowColor = hex;
   ctx.shadowBlur = 12;
-  ctx.fillText(label, 256, 40);
+  ctx.strokeText(label, 256, 34);
+  ctx.fillText(label, 256, 34);
   const tex = new THREE.CanvasTexture(canvas);
   const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
   const sprite = new THREE.Sprite(spriteMat);
-  sprite.position.set(0, portalY + portalRadius + 0.55 * scale, 0);
+  sprite.position.set(0, portalY, 0);
   sprite.scale.set(4 * scale, 0.5 * scale, 1);
   group.add(sprite);
 

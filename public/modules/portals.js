@@ -8,6 +8,7 @@ import {
   PORTAL_ROW_Z,
   PORTAL_ROW_SPACING,
   PORTAL_PIETER_ELEVATION_Y,
+  PORTAL_LABEL_Y_OFFSET_RATIO,
   PORTAL_PIETER_X,
   PORTAL_GLOBAL_X_OFFSET,
   PLAYER_SPAWN_Z,
@@ -66,12 +67,20 @@ function replacePortalWithModel(group, sourceModel) {
   // Remove all children
   while (group.children.length) group.remove(group.children[0]);
 
-  // Add GLB clone
+  // Measure the replacement model before adding it to a transformed parent.
   const clone = sourceModel.clone();
+  const bounds = new THREE.Box3().setFromObject(clone);
+  const modelHeight = Math.max(0.001, bounds.max.y - bounds.min.y);
+  const labelY = bounds.max.y + modelHeight * PORTAL_LABEL_Y_OFFSET_RATIO;
+
+  // Add GLB clone
   group.add(clone);
 
   // Re-add label sprites
-  for (const s of label) group.add(s);
+  for (const s of label) {
+    s.position.set(0, labelY, 0);
+    group.add(s);
+  }
 
   // Keep a dummy portalMat so the update loop doesn't error
   group.userData.portalMat = {
@@ -176,15 +185,41 @@ export async function initPortals(scene, player) {
   });
   pieterPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
 
-  // Position and scale registry portals extending leftward from pieter portal
-  const PORTAL_SCALE = 2.5;
+  // Scatter portals in deterministic pseudo-random positions (seeded PRNG)
+  const PORTAL_SCALE = 7.5;
+  const SCATTER_MIN = 60;
+  const SCATTER_MAX = 220;
+  const MIN_SEPARATION = 40;
+  const spawnPos = new THREE.Vector3(0, 0, PLAYER_SPAWN_Z);
+  const placedPositions = [];
+
+  // Simple seeded PRNG (mulberry32) — same seed = same layout every time
+  let seed = 48271;
+  function seededRandom() {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  }
+
   for (let i = 0; i < portals.length; i++) {
-    const slotIndex = i < registryData.length ? i : hubSlotIndex;
-    // Rightmost registry slot sits one spacing left of pieter; rest extend further left
-    const x = pieterX - (totalSlots - slotIndex) * PORTAL_ROW_SPACING;
+    let x, z, tooClose;
+    let attempts = 0;
+    do {
+      const angle = seededRandom() * Math.PI * 2;
+      const dist = SCATTER_MIN + seededRandom() * (SCATTER_MAX - SCATTER_MIN);
+      x = Math.cos(angle) * dist;
+      z = Math.sin(angle) * dist;
+      tooClose = placedPositions.some(
+        (p) => Math.hypot(p.x - x, p.z - z) < MIN_SEPARATION
+      );
+      attempts++;
+    } while (tooClose && attempts < 50);
+
+    placedPositions.push({ x, z });
     portals[i].group.scale.setScalar(PORTAL_SCALE);
-    portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, PORTAL_ROW_Z);
-    portals[i].group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
+    portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, z);
+    portals[i].group.lookAt(spawnPos.x, PORTAL_PIETER_ELEVATION_Y, spawnPos.z);
   }
 
   // Replace SDK procedural portal visuals with the GLB model
