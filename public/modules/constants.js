@@ -47,6 +47,11 @@ export const TREE_CENTER_CLEAR_RADIUS = 110;
 // -- Portals --
 /** Added to every portal world X (row, Pieter torus, return torus). */
 export const PORTAL_GLOBAL_X_OFFSET = -25;
+/**
+ * Extra world X for all portals (scatter + toruses). At default orbit the camera sits
+ * on +Z and looks toward −Z; −X is left on screen. Negative values shift portals left.
+ */
+export const PORTAL_VIEW_LEFT_BIAS_X = -45;
 export const PORTAL_ROW_Z = -12;
 /** Horizontal gap between portal slots (wider = clearer of avatar arms in T-pose). */
 export const PORTAL_ROW_SPACING = 40;
