@@ -20,6 +20,7 @@ import { gltfLoader } from './loader.js';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
+const PORTALS_ORIGIN = 'https://portal.thevibemetaverse.com';
 const PORTAL_V2_MODEL_PATH = 'assets/models/portal-v2.glb';
 
 const portalClock = new THREE.Clock();
@@ -27,6 +28,42 @@ let portals = [];
 let customRefPortal = null;
 let pieterPortal = null;
 let _player = null;
+
+/** Inner disk in portal-v2.glb — named `PortalSurface` in the asset. */
+function tintPortalSurface(root, colorHex, imageUrl) {
+  const c = new THREE.Color(colorHex);
+  root.traverse((child) => {
+    if (!child.isMesh || child.name !== 'PortalSurface') return;
+    // Clone materials so each portal gets its own instance
+    if (Array.isArray(child.material)) {
+      child.material = child.material.map((m) => m.clone());
+    } else {
+      child.material = child.material.clone();
+    }
+    const materials = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    for (const mat of materials) {
+      if (mat?.color) mat.color.copy(c);
+      if (mat?.emissive) mat.emissive.set(0x000000);
+    }
+    // Apply the portal image from the SDK registry as the surface texture
+    if (imageUrl) {
+      const loader = new THREE.TextureLoader();
+      loader.load(imageUrl, (tex) => {
+        tex.colorSpace = THREE.SRGBColorSpace;
+        const mat = Array.isArray(child.material)
+          ? child.material[0]
+          : child.material;
+        if (mat) {
+          mat.map = tex;
+          mat.color.set(0xffffff);
+          mat.needsUpdate = true;
+        }
+      });
+    }
+  });
+}
 
 /** Load the portal-v2 GLB once and return the scene. */
 function loadPortalModel() {
@@ -47,7 +84,7 @@ function loadPortalModel() {
  * Replace the procedural SDK portal visuals in a group with a clone of the GLB model.
  * Keeps the label sprite and a compatible portalMat for the update loop.
  */
-function replacePortalWithModel(group, sourceModel) {
+function replacePortalWithModel(group, sourceModel, imageUrl) {
   // Preserve the label sprite (last child is typically the sprite)
   const label = [];
   group.traverse((child) => {
@@ -69,6 +106,7 @@ function replacePortalWithModel(group, sourceModel) {
 
   // Measure the replacement model before adding it to a transformed parent.
   const clone = sourceModel.clone();
+  tintPortalSurface(clone, 0x000000, imageUrl);
   const bounds = new THREE.Box3().setFromObject(clone);
   const modelHeight = Math.max(0.001, bounds.max.y - bounds.min.y);
   const labelY = bounds.max.y + modelHeight * PORTAL_LABEL_Y_OFFSET_RATIO;
@@ -145,30 +183,12 @@ export async function initPortals(scene, player) {
   const wantCustomPortal = hasPortalQueryParam();
   data = (data || []).filter((p) => p.url && !isSameDocumentDestination(p.url));
 
-  const hubExitEntry = data.find((p) => p.slug === 'portal-network');
   const registryData = data.filter((p) => p.slug !== 'portal-network');
-
-  const leadingSlots = 0;
-  const trailingSlots = hubExitEntry ? 1 : 0;
-  const totalSlots = leadingSlots + registryData.length + trailingSlots;
 
   portals = spawnPortalRow(scene, registryData, {
     rowZ: PORTAL_ROW_Z,
     spacing: PORTAL_ROW_SPACING,
-    leadingSlots,
-    trailingSlots,
   });
-
-  const hubSlotIndex = leadingSlots + registryData.length;
-
-  if (hubExitEntry) {
-    const group = createPortalMesh({
-      label: hubExitEntry.title || hubExitEntry.slug,
-      name: 'portal-' + hubExitEntry.slug,
-    });
-    scene.add(group);
-    portals.push({ data: hubExitEntry, group });
-  }
 
   // Pieter portal is anchored at a fixed X on the right.
   // Registry portals extend leftward from there.
@@ -230,7 +250,11 @@ export async function initPortals(scene, player) {
   // Replace SDK procedural portal visuals with the GLB model
   if (portalModel) {
     for (const portal of portals) {
-      replacePortalWithModel(portal.group, portalModel);
+      const imgPath = portal.data?.portalImageUrl;
+      const imgUrl = imgPath
+        ? new URL('PORTALS/' + imgPath, PORTALS_ORIGIN + '/').href
+        : null;
+      replacePortalWithModel(portal.group, portalModel, imgUrl);
     }
   }
 
