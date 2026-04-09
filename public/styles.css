@@ -24,6 +24,10 @@ canvas { display: block; touch-action: none; }
 }
 
 #enter-vr {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  z-index: 10;
   pointer-events: auto;
   font-family: 'Courier New', monospace;
   font-size: 12px;

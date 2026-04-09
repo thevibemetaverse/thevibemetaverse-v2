@@ -60,7 +60,9 @@ function clearAllRemotes() {
   }
 }
 
-function ensureRemotePlayer(id, avatarUrl, name = DEFAULT_PLAYER_NAME) {
+function ensureRemotePlayer(id, avatarUrl, name) {
+  const resolvedName =
+    typeof name === 'string' ? name : DEFAULT_PLAYER_NAME;
   if (id === state.localPlayerId) return;
   const existing = state.remotePlayers.get(id);
   if (existing) {
@@ -72,13 +74,13 @@ function ensureRemotePlayer(id, avatarUrl, name = DEFAULT_PLAYER_NAME) {
   group.position.set(0, 0, PLAYER_SPAWN_Z);
   state.scene.add(group);
 
-  const nametagSprite = createNametagSprite(name);
+  const nametagSprite = createNametagSprite(resolvedName);
   group.add(nametagSprite);
 
   const record = {
     id,
     avatarUrl,
-    name,
+    name: resolvedName,
     group,
     modelRoot: null,
     animationMixer: null,
@@ -127,7 +129,11 @@ function handleMessage(raw) {
       const list = Array.isArray(msg.players) ? msg.players : [];
       for (const p of list) {
         if (p?.id && typeof p.avatarUrl === 'string') {
-          ensureRemotePlayer(p.id, p.avatarUrl, p.name || DEFAULT_PLAYER_NAME);
+          ensureRemotePlayer(
+            p.id,
+            p.avatarUrl,
+            typeof p.name === 'string' ? p.name : DEFAULT_PLAYER_NAME
+          );
         }
       }
       break;
@@ -165,7 +171,8 @@ function handleMessage(raw) {
     }
     case 'player_avatar': {
       if (!msg.id || msg.id === state.localPlayerId) break;
-      const existingName = state.remotePlayers.get(msg.id)?.name || DEFAULT_PLAYER_NAME;
+      const existingName =
+        state.remotePlayers.get(msg.id)?.name ?? DEFAULT_PLAYER_NAME;
       disposeRemoteById(msg.id);
       ensureRemotePlayer(
         msg.id,
@@ -178,7 +185,8 @@ function handleMessage(raw) {
       if (!msg.id || msg.id === state.localPlayerId) break;
       const r = state.remotePlayers.get(msg.id);
       if (r) {
-        r.name = msg.name || DEFAULT_PLAYER_NAME;
+        r.name =
+          typeof msg.name === 'string' ? msg.name : DEFAULT_PLAYER_NAME;
         if (r.nametagSprite) updateNametagText(r.nametagSprite, r.name);
       }
       break;

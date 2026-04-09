@@ -65,7 +65,7 @@ export const PORTAL_PIETER_TORUS_EXTRA_X = 12;
  */
 export const PORTAL_PROXIMITY_DIST = 5;
 /** Horizontal (XZ) distance: registry portals navigate when closer than this. */
-export const PORTAL_ENTER_DIST = 4.5;
+export const PORTAL_ENTER_DIST = 4.8;
 /** Horizontal (XZ) distance: Pieter torus + custom ref portal navigate when closer than this. */
 export const PORTAL_CUSTOM_REF_ENTER_DIST = 1.5;
 /** World Y for portal groups; slightly raised so rings sit above shoulder height after mesh offset × scale. */
