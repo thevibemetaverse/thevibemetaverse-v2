@@ -1,9 +1,5 @@
 import * as THREE from 'three';
-import {
-  fetchPortalsRegistry,
-  spawnPortalRow,
-  createPortalMesh,
-} from '@vibe/portals';
+import { fetchPortalsRegistry, spawnPortalRow } from '@vibe/portals';
 import {
   PORTAL_ROW_Z,
   PORTAL_ROW_SPACING,
@@ -13,6 +9,11 @@ import {
   PORTAL_GLOBAL_X_OFFSET,
   PLAYER_SPAWN_Z,
   PORTAL_RETURN_Z,
+  PORTAL_SCALE,
+  PORTAL_SCATTER_HALF_WIDTH,
+  PORTAL_SCATTER_FRONT_MIN,
+  PORTAL_SCATTER_FRONT_MAX,
+  PORTAL_SCATTER_MIN_SEPARATION,
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity } from './portal-proximity.js';
@@ -23,6 +24,7 @@ const PORTALS_URL = '/portals.json';
 const PORTALS_ORIGIN = 'https://portal.thevibemetaverse.com';
 const PORTAL_V2_MODEL_PATH = 'assets/models/portal-v2.glb';
 
+const textureLoader = new THREE.TextureLoader();
 const portalClock = new THREE.Clock();
 let portals = [];
 let customRefPortal = null;
@@ -49,8 +51,7 @@ function tintPortalSurface(root, colorHex, imageUrl) {
     }
     // Apply the portal image from the SDK registry as the surface texture
     if (imageUrl) {
-      const loader = new THREE.TextureLoader();
-      loader.load(imageUrl, (tex) => {
+      textureLoader.load(imageUrl, (tex) => {
         tex.colorSpace = THREE.SRGBColorSpace;
         const mat = Array.isArray(child.material)
           ? child.material[0]
@@ -67,7 +68,7 @@ function tintPortalSurface(root, colorHex, imageUrl) {
 
 /** Load the portal-v2 GLB once and return the scene. */
 function loadPortalModel() {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     gltfLoader.load(
       PORTAL_V2_MODEL_PATH,
       (gltf) => resolve(gltf.scene),
@@ -124,12 +125,6 @@ function replacePortalWithModel(group, sourceModel, imageUrl) {
   group.userData.portalMat = {
     uniforms: { time: { value: 0 } },
   };
-}
-
-/** Same X layout as `spawnPortalRow` in the SDK. */
-function portalRowSlotX(slotIndex, totalSlots, spacing = PORTAL_ROW_SPACING) {
-  const rowWidth = totalSlots <= 1 ? 0 : (totalSlots - 1) * spacing;
-  return -rowWidth / 2 + slotIndex * spacing;
 }
 
 function hasPortalQueryParam() {
@@ -210,11 +205,6 @@ export async function initPortals(scene, player) {
 
   // Scatter portals in deterministic pseudo-random positions (seeded PRNG),
   // biased into a band in front of spawn so they are visible sooner on load.
-  const PORTAL_SCALE = 7.5;
-  const SCATTER_HALF_WIDTH = 95;
-  const SCATTER_FRONT_MIN = 45;
-  const SCATTER_FRONT_MAX = 135;
-  const MIN_SEPARATION = 34;
   const spawnPos = new THREE.Vector3(0, 0, PLAYER_SPAWN_Z);
   const placedPositions = [];
 
@@ -231,15 +221,16 @@ export async function initPortals(scene, player) {
     let x, z, tooClose;
     let attempts = 0;
     do {
-      const xOffset = (seededRandom() * 2 - 1) * SCATTER_HALF_WIDTH;
+      const xOffset = (seededRandom() * 2 - 1) * PORTAL_SCATTER_HALF_WIDTH;
       const zOffset = -(
-        SCATTER_FRONT_MIN +
-        seededRandom() * (SCATTER_FRONT_MAX - SCATTER_FRONT_MIN)
+        PORTAL_SCATTER_FRONT_MIN +
+        seededRandom() *
+          (PORTAL_SCATTER_FRONT_MAX - PORTAL_SCATTER_FRONT_MIN)
       );
       x = spawnPos.x + xOffset;
       z = spawnPos.z + zOffset;
       tooClose = placedPositions.some(
-        (p) => Math.hypot(p.x - x, p.z - z) < MIN_SEPARATION
+        (p) => Math.hypot(p.x - x, p.z - z) < PORTAL_SCATTER_MIN_SEPARATION
       );
       attempts++;
     } while (tooClose && attempts < 50);
