@@ -99,6 +99,26 @@ export const ROOM_CAMERA_ORBIT_DISTANCE = 20;
 /** Camera orbit height when inside a meeting room. */
 export const ROOM_CAMERA_ORBIT_HEIGHT = 10;
 
+// -- WebXR / gamepad --
+/** Ignore stick noise below this magnitude (0–1). */
+export const GAMEPAD_STICK_DEADZONE = 0.16;
+/** Looser deadzone while in WebXR (Quest thumbsticks can be subtle). */
+export const VR_GAMEPAD_STICK_DEADZONE = 0.08;
+/** Right stick orbit / comfort-turn (rad/s at full deflection). */
+export const GAMEPAD_ORBIT_SPEED = 2.2;
+/** First-person VR: right-stick yaw rate (rad/s) for comfort turning. */
+export const VR_FP_COMFORT_YAW_SPEED = 2.0;
+/** Height of XR rig pivot above ground (feet = player Y). */
+export const XR_RIG_FOOT_OFFSET_Y = 0.05;
+/**
+ * WebXR poses are in meters (~1.65 m standing eye height). Avatars use {@link PLAYER_TARGET_HEIGHT}
+ * world units tall — without scaling, the player feels tiny next to the environment.
+ */
+export const XR_METERS_TO_WORLD = PLAYER_TARGET_HEIGHT / 1.65;
+/** Third-person XR: camera rig uses same orbit radii as desktop (world space). */
+export const XR_THIRD_PERSON_ORBIT_DISTANCE = CAMERA_ORBIT_DISTANCE;
+export const XR_THIRD_PERSON_ORBIT_HEIGHT = CAMERA_ORBIT_HEIGHT;
+
 // -- Animation --
 export const MAX_DELTA = 0.1;               // clamp frame delta to prevent physics jumps
 

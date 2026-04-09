@@ -17,8 +17,10 @@ import { initModels } from './models.js';
 import { initDevTools } from './dev-tools.js';
 import { initClouds, updateClouds } from './clouds.js';
 import { initMultiplayer, updateMultiplayer, notifyLocalNameChanged } from './multiplayer.js';
-import { initNametag } from './nametag.js';
+import { initNametag, setLocalNametagVisible } from './nametag.js';
 import { initMeetingRoom, updateMeetingRoom } from './meeting-room.js';
+import { beginInputFrame } from './input.js';
+import { initWebXR, syncXrControllersToWorldAnchor } from './webxr.js';
 
 export function init() {
   // Populate DOM refs
@@ -68,13 +70,18 @@ export function init() {
   }
 
   initMultiplayer();
+  initWebXR();
 
   window.addEventListener('resize', onResize);
-  animate();
+  state.renderer.setAnimationLoop(animate);
 }
 
-function animate() {
-  requestAnimationFrame(animate);
+/**
+ * @param {number} _time
+ * @param {globalThis.XRFrame | undefined} frame
+ */
+function animate(_time, frame) {
+  beginInputFrame(frame);
   const delta = Math.min(state.clock.getDelta(), MAX_DELTA);
   updatePlayer(delta);
   updateMultiplayer(delta);
@@ -89,5 +96,14 @@ function animate() {
   updateCamera();
   if (state.animationMixer) state.animationMixer.update(delta);
   updateSettings();
+  updateLocalAvatarForVr();
   state.renderer.render(state.scene, state.camera);
+  syncXrControllersToWorldAnchor(frame);
+}
+
+function updateLocalAvatarForVr() {
+  const xr = state.renderer?.xr?.isPresenting === true;
+  const hideBody = xr && state.vrPov === 'first';
+  if (state.playerModel) state.playerModel.visible = !hideBody;
+  setLocalNametagVisible(!hideBody);
 }
