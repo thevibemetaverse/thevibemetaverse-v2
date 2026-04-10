@@ -12,6 +12,9 @@ export function setupPlayerControls() {
     if (e.persisted) clearStuckInput();
   });
 
+  // Tab lost focus (e.g. portal opened in new tab): clear held keys so player stops moving
+  window.addEventListener('blur', clearStuckInput);
+
   window.addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
     if (state.gameState === 'EXPLORING') {
