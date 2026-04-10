@@ -584,19 +584,26 @@ canvas { display: block; touch-action: none; }
          drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
 }
 
-/* 3D smoked meat preview canvas */
+/* Wagyu A5 pixel-art sprite — top-down, Minecraft-style. Source is 32x32
+   drawn via Canvas2D; we upscale nearest-neighbor so the chunky pixels
+   stay crisp. A warm gold halo keeps it feeling premium inside the slot. */
 .chest-meat-canvas {
-  width: 76px;
-  height: 76px;
+  width: 72px;
+  height: 72px;
   display: block;
-  filter: drop-shadow(0 0 10px rgba(255, 100, 30, 0.35))
-         drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.28))
+         drop-shadow(0 0 16px rgba(180, 20, 30, 0.18))
+         drop-shadow(2px 3px 0 rgba(0, 0, 0, 0.7));
   transition: filter 0.3s, transform 0.3s;
 }
 .chest-item:hover .chest-meat-canvas {
-  filter: drop-shadow(0 0 18px rgba(255, 140, 50, 0.55))
-         drop-shadow(0 0 30px rgba(255, 215, 0, 0.3))
-         drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.45))
+         drop-shadow(0 0 26px rgba(255, 100, 100, 0.22))
+         drop-shadow(0 0 40px rgba(255, 215, 0, 0.2))
+         drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.75));
 }
 
 .chest-item-name {
