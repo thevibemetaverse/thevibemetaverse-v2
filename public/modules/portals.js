@@ -5,6 +5,7 @@ import {
   PORTAL_ROW_SPACING,
   PORTAL_PIETER_ELEVATION_Y,
   PORTAL_LABEL_Y_OFFSET_RATIO,
+  PORTAL_GLB_LABEL_SCALE,
   PORTAL_PIETER_X,
   PORTAL_GLOBAL_X_OFFSET,
   PORTAL_VIEW_LEFT_BIAS_X,
@@ -116,9 +117,10 @@ function replacePortalWithModel(group, sourceModel, imageUrl) {
   // Add GLB clone
   group.add(clone);
 
-  // Re-add label sprites
+  // Re-add label sprites (boost scale vs tall GLB arch — see PORTAL_GLB_LABEL_SCALE)
   for (const s of label) {
     s.position.set(0, labelY, 0);
+    s.scale.multiplyScalar(PORTAL_GLB_LABEL_SCALE);
     group.add(s);
   }
 
