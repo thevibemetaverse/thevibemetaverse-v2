@@ -65,7 +65,6 @@ function createDOM() {
 
       meatItem = document.createElement('div');
       meatItem.className = 'chest-item';
-      meatItem.addEventListener('click', handleBuy);
 
       const glow = document.createElement('div');
       glow.className = 'chest-item-glow';
@@ -84,7 +83,7 @@ function createDOM() {
       // Edition tooltip — visible on hover
       const edition = document.createElement('span');
       edition.className = 'chest-item-edition';
-      edition.textContent = 'Edition #001';
+      edition.textContent = '1 of 1';
 
       meatItem.append(beam, glow, meatCanvas, name, edition);
       slot.appendChild(meatItem);
@@ -178,93 +177,6 @@ function closeChestMenu() {
   state.chestMenuOpen = false;
   overlay.classList.remove('open');
   stopMeatAnimation();
-}
-
-function handleBuy() {
-  if (state.meatSold) return;
-
-  state.meatSold = true;
-  state.meatBuyer = state.localPlayerName || 'Anonymous';
-
-  // Transform slot into trophy shrine
-  meatSlot.classList.remove('has-item');
-  meatSlot.classList.add('sold');
-
-  meatItem.innerHTML = '';
-  meatItem.style.cursor = 'default';
-
-  const trophy = document.createElement('span');
-  trophy.className = 'chest-trophy-icon';
-  trophy.textContent = '\u{1F3C6}';
-
-  const claimedLabel = document.createElement('span');
-  claimedLabel.className = 'chest-claimed-label';
-  claimedLabel.textContent = 'CLAIMED';
-
-  const buyerName = document.createElement('span');
-  buyerName.className = 'chest-buyer-name';
-  buyerName.textContent = state.meatBuyer;
-
-  const engraving = document.createElement('span');
-  engraving.className = 'chest-engraving';
-  engraving.textContent = 'Forever enshrined';
-
-  meatItem.append(trophy, claimedLabel, buyerName, engraving);
-
-  // Hide price reveal, update copy
-  const priceEl = overlay.querySelector('.chest-price-reveal');
-  if (priceEl) priceEl.classList.add('hidden');
-  const container = overlay.querySelector('.chest-container');
-  if (container) container.classList.remove('item-hovered');
-  const tagline = overlay.querySelector('.chest-tagline');
-  if (tagline) {
-    tagline.textContent = `${state.meatBuyer} is that person.`;
-    tagline.classList.add('chest-tagline--claimed');
-  }
-  // Flip the status badge to CLAIMED
-  const status = overlay.querySelector('.chest-viewers-status');
-  if (status) {
-    status.textContent = 'CLAIMED';
-    status.classList.add('chest-viewers-status--claimed');
-  }
-
-  // Confetti
-  spawnConfetti();
-}
-
-function spawnConfetti() {
-  const container = overlay.querySelector('.chest-container');
-  if (!container) return;
-
-  const colors = ['#ffd700', '#c9a84c', '#fff4b8', '#ff6b35', '#e8c547', '#ffffff'];
-
-  for (let i = 0; i < 45; i++) {
-    const particle = document.createElement('div');
-    particle.className = 'confetti-particle';
-    const color = colors[Math.floor(Math.random() * colors.length)];
-    const x = Math.random() * 100;
-    const delay = Math.random() * 0.6;
-    const duration = 1.5 + Math.random() * 1.2;
-    const rotation = Math.random() * 720 - 360;
-    const size = 4 + Math.random() * 6;
-    const shape = Math.random() > 0.5 ? '50%' : '0';
-
-    particle.style.cssText = `
-      left: ${x}%;
-      top: -10px;
-      width: ${size}px;
-      height: ${size}px;
-      background: ${color};
-      border-radius: ${shape};
-      animation-delay: ${delay}s;
-      animation-duration: ${duration}s;
-      --confetti-rotation: ${rotation}deg;
-      --confetti-drift: ${(Math.random() - 0.5) * 80}px;
-    `;
-
-    particle.addEventListener('animationend', () => particle.remove());
-    container.appendChild(particle);
-  }
 }
 
 function setupClickDetection() {
