@@ -18,7 +18,7 @@ import {
   PORTAL_SCATTER_MIN_SEPARATION,
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
-import { checkProximity } from './portal-proximity.js';
+import { checkProximity, setPortalPlayer } from './portal-proximity.js';
 import { gltfLoader } from './loader.js';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
@@ -167,6 +167,7 @@ function isSameDocumentDestination(portalUrl) {
 
 export async function initPortals(scene, player) {
   _player = player;
+  setPortalPlayer(player);
 
   // Load portal-v2 model and registry in parallel
   const [portalModel, registryResult] = await Promise.all([

@@ -5,6 +5,7 @@ import {
   PORTAL_ENTER_DIST,
   PORTAL_CUSTOM_REF_ENTER_DIST,
   PLAYER_MOVE_SPEED,
+  PLAYER_SPAWN_Z,
   DEFAULT_PLAYER_NAME,
 } from './constants.js';
 
@@ -19,10 +20,19 @@ function distanceXZ(a, b) {
 
 let promptEl = null;
 let navigating = false;
+/** Set after BFCache restore — tells the next checkProximity call to teleport player to spawn. */
+let pendingRespawn = false;
+/** Timestamp (ms) until which portal checks are suppressed (cooldown after respawn). */
+let cooldownUntil = 0;
 
-// BFCache restore: navigating was left true when we navigated away
+// BFCache restore: player is still near the portal — flag a respawn + cooldown so we
+// don't immediately re-trigger navigation.
 window.addEventListener('pageshow', (e) => {
-  if (e.persisted) navigating = false;
+  if (e.persisted) {
+    navigating = false;
+    pendingRespawn = true;
+    cooldownUntil = performance.now() + 1500; // 1.5s grace period
+  }
 });
 
 function ensurePrompt() {
@@ -39,7 +49,44 @@ function ensurePrompt() {
   document.body.appendChild(promptEl);
 }
 
-function navigateToRefPortal() {
+/** Distance to place the player in front of the portal after using it. */
+const PORTAL_RESPAWN_OFFSET = 12;
+
+/** Open a portal URL in a new tab and respawn the player in front of the portal. */
+function openPortalAndRespawn(url, portalGroup) {
+  navigating = true;
+  window.open(url, '_blank');
+  // Place player a short distance in front of the portal (along its forward/facing direction)
+  if (_player && portalGroup) {
+    const portalPos = new THREE.Vector3();
+    portalGroup.getWorldPosition(portalPos);
+    // Portals face toward spawn — their -Z local axis points at the player.
+    // Get the portal's forward direction and offset the player along it.
+    const forward = new THREE.Vector3(0, 0, 1);
+    forward.applyQuaternion(portalGroup.quaternion).normalize();
+    _player.position.set(
+      portalPos.x + forward.x * PORTAL_RESPAWN_OFFSET,
+      0,
+      portalPos.z + forward.z * PORTAL_RESPAWN_OFFSET
+    );
+  } else if (_player) {
+    _player.position.set(0, 0, PLAYER_SPAWN_Z);
+  }
+  cooldownUntil = performance.now() + 2000;
+  if (promptEl) promptEl.style.display = 'none';
+  // Allow portal checks again after cooldown
+  setTimeout(() => { navigating = false; }, 2000);
+}
+
+/** @type {THREE.Object3D|null} */
+let _player = null;
+
+/** Store reference to player for respawn after portal use. */
+export function setPortalPlayer(player) {
+  _player = player;
+}
+
+function navigateToRefPortal(portalGroup) {
   const urlParams = new URLSearchParams(window.location.search);
   const refUrl = urlParams.get('ref');
   if (!refUrl) return;
@@ -54,11 +101,10 @@ function navigateToRefPortal() {
     }
   }
   const paramString = newParams.toString();
-  navigating = true;
-  window.location.href = url + (paramString ? '?' + paramString : '');
+  openPortalAndRespawn(url + (paramString ? '?' + paramString : ''), portalGroup);
 }
 
-function navigateToPieterPortal() {
+function navigateToPieterPortal(portalGroup) {
   const currentParams = new URLSearchParams(window.location.search);
   const newParams = new URLSearchParams();
   newParams.append('portal', 'true');
@@ -76,8 +122,7 @@ function navigateToPieterPortal() {
     document.title || document.location.hostname || 'The Vibe Metaverse'
   );
   const paramString = newParams.toString();
-  navigating = true;
-  window.location.href = PIETER_PORTAL_URL + (paramString ? '?' + paramString : '');
+  openPortalAndRespawn(PIETER_PORTAL_URL + (paramString ? '?' + paramString : ''), portalGroup);
 }
 
 function navigateToRegistryPortal(portal) {
@@ -85,11 +130,11 @@ function navigateToRegistryPortal(portal) {
   const username = params.get('username');
   const avatar = params.get('avatar_url');
 
-  window.location.href = buildPortalUrl(portal.data, {
+  openPortalAndRespawn(buildPortalUrl(portal.data, {
     username: username || undefined,
     avatarUrl: avatar || undefined,
     fromPortal: document.title || undefined,
-  });
+  }), portal.group);
 }
 
 /**
@@ -100,6 +145,18 @@ function navigateToRegistryPortal(portal) {
  * @param {Array} registryPortals
  */
 export function checkProximity(player, customRefPortal, pieterPortal, registryPortals) {
+  // After BFCache restore, teleport player back to spawn so they aren't inside a portal.
+  if (pendingRespawn && player) {
+    player.position.set(0, 0, PLAYER_SPAWN_Z);
+    pendingRespawn = false;
+  }
+
+  // Suppress portal checks during cooldown (prevents instant re-trigger after respawn).
+  if (performance.now() < cooldownUntil) {
+    if (promptEl) promptEl.style.display = 'none';
+    return;
+  }
+
   const worldPos = new THREE.Vector3();
 
   let refDist = Infinity;
@@ -155,14 +212,14 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
       : 'Entering portal…';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
-      navigateToRefPortal();
+      navigateToRefPortal(customRefPortal.group);
     }
   } else if (best?.kind === 'pieter' && !navigating) {
     ensurePrompt();
     promptEl.textContent = 'Entering Vibeverse portal...';
     promptEl.style.display = 'block';
     if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
-      navigateToPieterPortal();
+      navigateToPieterPortal(pieterPortal.group);
     }
   } else if (best?.kind === 'registry' && best.portal && !navigating) {
     ensurePrompt();
@@ -171,9 +228,6 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
     promptEl.style.display = 'block';
 
     if (best.dist < PORTAL_ENTER_DIST) {
-      navigating = true;
-      promptEl.textContent =
-        'Entering ' + (best.portal.data.title || best.portal.data.slug) + '...';
       navigateToRegistryPortal(best.portal);
     }
   } else if (promptEl) {
