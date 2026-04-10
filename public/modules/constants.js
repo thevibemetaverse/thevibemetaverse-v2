@@ -82,7 +82,7 @@ export const PORTAL_RETURN_BEHIND_SPAWN = 15;
 /** World Z for the red return torus — derived so it tracks spawn. */
 export const PORTAL_RETURN_Z = PLAYER_SPAWN_Z + PORTAL_RETURN_BEHIND_SPAWN;
 /** Scale applied to registry portal groups after scatter placement. */
-export const PORTAL_SCALE = 7.5;
+export const PORTAL_SCALE = 1;
 /** Half-width (±X) of the scatter band from spawn. */
 export const PORTAL_SCATTER_HALF_WIDTH = 95;
 /** Nearest −Z offset (distance in front of spawn) for scatter placement. */

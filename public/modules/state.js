@@ -1,6 +1,10 @@
 // @ts-check
 import * as THREE from 'three';
-import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
+import {
+  CAMERA_ORBIT_DISTANCE,
+  CAMERA_ORBIT_HEIGHT,
+  DEFAULT_PLAYER_NAME,
+} from './constants.js';
 
 /**
  * @typedef {'EXPLORING' | 'PROMPTING'} GameState
@@ -73,7 +77,7 @@ import { CAMERA_ORBIT_DISTANCE, CAMERA_ORBIT_HEIGHT } from './constants.js';
  *
  * @property {string | null} localPlayerId - Assigned by multiplayer welcome (UUID).
  * @property {boolean} localPlayerMoving - Updated each frame from movement input (for network).
- * @property {string} localPlayerName - Display name above head (trimmed from name input; may be empty).
+ * @property {string} localPlayerName - Display name above head (trimmed from name input; initial default from constants).
  *
  * @property {Map<string, RemotePlayerRecord>} remotePlayers - Other clients (id → record).
  *
@@ -124,7 +128,7 @@ export const state = {
 
   localPlayerId: null,
   localPlayerMoving: false,
-  localPlayerName: '',
+  localPlayerName: DEFAULT_PLAYER_NAME,
   remotePlayers: new Map(),
 
   // DOM refs (populated in init)
