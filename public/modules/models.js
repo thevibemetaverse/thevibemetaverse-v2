@@ -28,6 +28,13 @@ export const MODEL_PLACEMENTS = [
     rotation: [0, 20, 0],
     scale: 5,
   },
+  {
+    name: 'chest-freezer',
+    path: 'assets/models/chest_freezer.glb',
+    position: [-16, 3, -30],
+    rotation: [0, -385, 0],
+    scale: 0.1,
+  },
 ];
 
 /** @type {Map<string, THREE.Object3D>} */

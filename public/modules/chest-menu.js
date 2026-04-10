@@ -85,8 +85,11 @@ function createDOM() {
       edition.className = 'chest-item-edition';
       edition.textContent = '1 of 1';
 
-      meatItem.append(beam, glow, meatCanvas, name, edition);
-      slot.appendChild(meatItem);
+      meatItem.append(beam, glow, meatCanvas);
+      // Tooltips are siblings of .chest-item (not children) so they don't
+      // inherit the item's hover scale/translate — they stay put and float
+      // cleanly above/below the slot.
+      slot.append(meatItem, name, edition);
     }
 
     grid.appendChild(slot);
@@ -138,11 +141,12 @@ function createDOM() {
   overlay.appendChild(container);
   document.body.appendChild(overlay);
 
-  // Hover state on meat item — dims grid, reveals price
-  meatItem.addEventListener('mouseenter', () => {
+  // Hover state on slot (not item) — item scales/lifts on hover, which
+  // would cause hover flicker if we listened on the item itself.
+  meatSlot.addEventListener('mouseenter', () => {
     if (!state.meatSold) container.classList.add('item-hovered');
   });
-  meatItem.addEventListener('mouseleave', () => {
+  meatSlot.addEventListener('mouseleave', () => {
     container.classList.remove('item-hovered');
   });
 
@@ -195,17 +199,16 @@ function setupClickDetection() {
     const dy = e.clientY - pointerStart.y;
     if (Math.hypot(dx, dy) > 5) return;
 
-    const bbq = getModel('bbq-sauce');
-    if (!bbq) return;
+    const freezer = getModel('chest-freezer');
+    if (!freezer) return;
 
-    // Raycast against BBQ sauce meshes only
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, state.camera);
 
     /** @type {THREE.Mesh[]} */
     const targets = [];
-    bbq.traverse((child) => {
+    freezer.traverse((child) => {
       if (/** @type {THREE.Mesh} */ (child).isMesh) {
         targets.push(/** @type {THREE.Mesh} */ (child));
       }
