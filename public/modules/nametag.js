@@ -182,6 +182,8 @@ export function initNametag({ onNameChanged }) {
   );
   if (!input) return;
 
+  input.value = state.localPlayerName;
+
   // Create local player nametag
   localNametag = createNametagSprite(state.localPlayerName);
   if (state.player) {

@@ -5,6 +5,7 @@ import {
   PORTAL_ENTER_DIST,
   PORTAL_CUSTOM_REF_ENTER_DIST,
   PLAYER_MOVE_SPEED,
+  DEFAULT_PLAYER_NAME,
 } from './constants.js';
 
 const PIETER_PORTAL_URL = 'https://portal.pieter.com';
@@ -61,7 +62,10 @@ function navigateToPieterPortal() {
   const currentParams = new URLSearchParams(window.location.search);
   const newParams = new URLSearchParams();
   newParams.append('portal', 'true');
-  newParams.append('username', currentParams.get('username') || 'guest');
+  newParams.append(
+    'username',
+    currentParams.get('username') || DEFAULT_PLAYER_NAME
+  );
   newParams.append('color', 'white');
   newParams.append('speed', String(PLAYER_MOVE_SPEED));
   for (const [key, value] of currentParams) {
