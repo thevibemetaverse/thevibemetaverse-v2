@@ -72,6 +72,11 @@ export const PORTAL_CUSTOM_REF_ENTER_DIST = 1.5;
 export const PORTAL_PIETER_ELEVATION_Y = 4.9;
 /** Extra label height above the top of a replacement GLB portal model (fraction of model height). */
 export const PORTAL_LABEL_Y_OFFSET_RATIO = 0.25;
+/**
+ * Extra scale on the title sprite after swapping in portal-v2.glb (the arch reads much larger than the
+ * procedural disk the label was authored for).
+ */
+export const PORTAL_GLB_LABEL_SCALE = 2.25;
 /** Used for the custom return portal (?portal) — right flank X (see PORTAL_ROW_OFFSET_X). */
 export const PORTAL_PIETER_X = 18;
 /**

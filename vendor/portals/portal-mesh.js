@@ -130,26 +130,29 @@ export function createPortalMesh(opts = {}) {
   group.add(light2);
 
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 64;
+  canvas.width = 2048;
+  canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.font = 'bold 32px monospace';
+  ctx.font = 'bold 96px monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
   const hex = '#' + color1.getHexString();
   ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
-  ctx.lineWidth = 8;
+  ctx.lineWidth = 22;
   ctx.fillStyle = hex;
   ctx.shadowColor = hex;
-  ctx.shadowBlur = 12;
-  ctx.strokeText(label, 256, 34);
-  ctx.fillText(label, 256, 34);
+  ctx.shadowBlur = 32;
+  const cx = canvas.width / 2;
+  const cy = canvas.height / 2;
+  ctx.strokeText(label, cx, cy);
+  ctx.fillText(label, cx, cy);
   const tex = new THREE.CanvasTexture(canvas);
   const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
   const sprite = new THREE.Sprite(spriteMat);
   sprite.position.set(0, portalY, 0);
-  sprite.scale.set(4 * scale, 0.5 * scale, 1);
+  // Large world readout (was 4×0.5 originally; GLB swap keeps this sprite only)
+  sprite.scale.set(20 * scale, 2.5 * scale, 1);
   group.add(sprite);
 
   group.userData.portalMat = portalMat;
