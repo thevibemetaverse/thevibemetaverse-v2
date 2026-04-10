@@ -343,3 +343,550 @@ canvas { display: block; touch-action: none; }
 #dev-tools-slot .settings-panel__row {
   padding: 4px 14px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Chest Menu — Obsidian Vault
+   ═══════════════════════════════════════════════════════════════ */
+
+#chest-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(0, 0, 0, 0.75);
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(4px);
+}
+#chest-overlay.open {
+  display: flex;
+  animation: overlay-fade 0.3s ease-out;
+}
+
+@keyframes overlay-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.chest-container {
+  background:
+    repeating-conic-gradient(rgba(255, 255, 255, 0.012) 0% 25%, transparent 0% 50%) 0 0 / 4px 4px,
+    linear-gradient(180deg, #1e1e22 0%, #141418 100%);
+  border: 3px solid #c9a84c;
+  outline: 3px solid rgba(90, 74, 26, 0.6);
+  outline-offset: 0;
+  box-shadow:
+    0 0 60px rgba(201, 168, 76, 0.12),
+    0 0 120px rgba(0, 0, 0, 0.7),
+    0 25px 50px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 215, 0, 0.08),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+  padding: 20px;
+  position: relative;
+  animation: chest-open 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+@keyframes chest-open {
+  from { transform: scale(0.75) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* Title bar */
+.chest-title-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.2);
+}
+
+.chest-title {
+  background: linear-gradient(135deg, #ffd700 0%, #e8c547 40%, #ffd700 60%, #c9a84c 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: 'Courier New', monospace;
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  animation: title-shimmer 3s linear infinite;
+}
+
+@keyframes title-shimmer {
+  from { background-position: 200% center; }
+  to { background-position: -200% center; }
+}
+
+.chest-close {
+  background: none;
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  color: rgba(201, 168, 76, 0.7);
+  font-size: 22px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  line-height: 1;
+}
+.chest-close:hover {
+  color: #ffd700;
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.08);
+}
+
+/* Rarity badge */
+.chest-rarity {
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: #ffd700;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.5);
+  margin-bottom: 12px;
+  opacity: 0.8;
+}
+
+/* Grid */
+.chest-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 72px);
+  grid-template-rows: repeat(4, 72px);
+  gap: 4px;
+  padding: 12px;
+  background:
+    linear-gradient(135deg, rgba(0, 0, 0, 0.5) 0%, rgba(10, 10, 14, 0.8) 100%);
+  border: 2px solid #2a2a30;
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(201, 168, 76, 0.1);
+  transition: opacity 0.3s;
+}
+
+/* Dim non-item slots when hovering the item */
+.item-hovered .chest-slot:not(.has-item) {
+  opacity: 0.35;
+  transition: opacity 0.3s;
+}
+
+/* Slots — beveled inset */
+.chest-slot {
+  width: 72px;
+  height: 72px;
+  background: linear-gradient(145deg, #22222a 0%, #1a1a20 100%);
+  border: 2px solid;
+  border-color: #131316 #2e2e36 #2e2e36 #131316;
+  position: relative;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.3s, box-shadow 0.3s, opacity 0.3s;
+}
+
+/* Meat item slot — golden glow */
+.chest-slot.has-item {
+  border-color: #5a4a1a #c9a84c #c9a84c #5a4a1a;
+  background: linear-gradient(145deg, #2a2418 0%, #1e1a10 100%);
+  box-shadow:
+    0 0 16px rgba(255, 215, 0, 0.2),
+    inset 0 0 8px rgba(255, 215, 0, 0.05);
+  animation: slot-glow 2.5s ease-in-out infinite;
+  cursor: pointer;
+  overflow: visible;
+  z-index: 2;
+}
+
+@keyframes slot-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 16px rgba(255, 215, 0, 0.15),
+      inset 0 0 8px rgba(255, 215, 0, 0.03);
+  }
+  50% {
+    box-shadow:
+      0 0 28px rgba(255, 215, 0, 0.35),
+      0 0 56px rgba(255, 215, 0, 0.1),
+      inset 0 0 12px rgba(255, 215, 0, 0.08);
+  }
+}
+
+/* Chest item — lifts out of slot on hover */
+.chest-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.3s;
+  z-index: 3;
+}
+.chest-item:hover {
+  transform: translateY(-18px) scale(1.25);
+  filter: brightness(1.15);
+}
+
+/* Light beam — vertical golden light behind item on hover */
+.chest-item-beam {
+  position: absolute;
+  width: 40px;
+  bottom: -8px;
+  height: 120px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 215, 0, 0.25) 0%,
+    rgba(255, 215, 0, 0.08) 40%,
+    transparent 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s;
+  z-index: -1;
+  filter: blur(6px);
+}
+.chest-item:hover .chest-item-beam {
+  opacity: 1;
+}
+
+.chest-item-glow {
+  position: absolute;
+  inset: -8px;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.15) 0%, transparent 70%);
+  animation: item-pulse 2s ease-in-out infinite;
+  pointer-events: none;
+  transition: inset 0.3s, opacity 0.3s;
+}
+.chest-item:hover .chest-item-glow {
+  inset: -20px;
+  opacity: 1;
+}
+
+@keyframes item-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.chest-item-icon {
+  font-size: 34px;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.4));
+  line-height: 1;
+  transition: filter 0.3s;
+}
+.chest-item:hover .chest-item-icon {
+  filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.7))
+         drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+}
+
+/* 3D smoked meat preview canvas */
+.chest-meat-canvas {
+  width: 76px;
+  height: 76px;
+  display: block;
+  filter: drop-shadow(0 0 10px rgba(255, 100, 30, 0.35))
+         drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+  transition: filter 0.3s, transform 0.3s;
+}
+.chest-item:hover .chest-meat-canvas {
+  filter: drop-shadow(0 0 18px rgba(255, 140, 50, 0.55))
+         drop-shadow(0 0 30px rgba(255, 215, 0, 0.3))
+         drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+
+.chest-item-name {
+  font-family: 'Courier New', monospace;
+  font-size: 8px;
+  font-weight: 700;
+  color: #c9a84c;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 2px;
+  white-space: nowrap;
+  transition: color 0.3s;
+}
+.chest-item:hover .chest-item-name {
+  color: #ffd700;
+}
+
+/* Price reveal — below grid, appears on hover */
+.chest-price-reveal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 0 4px;
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transform: translateY(-8px);
+  transition: opacity 0.4s 0.1s, max-height 0.4s 0.1s, transform 0.4s 0.1s;
+}
+.item-hovered .chest-price-reveal {
+  opacity: 1;
+  max-height: 80px;
+  transform: translateY(0);
+}
+.chest-price-reveal.hidden {
+  display: none;
+}
+
+.chest-price-amount {
+  font-family: 'Courier New', monospace;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  background: linear-gradient(90deg, #c9a84c, #ffd700, #fff4b8, #ffd700, #c9a84c);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: price-shimmer 3s linear infinite;
+  filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.3));
+}
+
+.chest-price-label {
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  color: rgba(201, 168, 76, 0.6);
+  text-transform: uppercase;
+}
+
+@keyframes price-shimmer {
+  from { background-position: 300% center; }
+  to { background-position: -300% center; }
+}
+
+/* Edition tooltip — hidden by default, shown on item hover */
+.chest-item-edition {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 0.1em;
+  background: rgba(10, 10, 14, 0.95);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  padding: 4px 10px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s 0.15s, transform 0.3s 0.15s;
+  z-index: 5;
+}
+.chest-item-edition::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(201, 168, 76, 0.4);
+}
+.chest-item:hover .chest-item-edition {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Tagline — the one killer line */
+.chest-tagline {
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.7);
+  letter-spacing: 0.04em;
+  margin-top: 14px;
+  padding: 0 4px;
+  transition: color 0.5s;
+}
+.chest-tagline--claimed {
+  color: #ffd700;
+  font-style: normal;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+
+/* Minecraft-style viewer counter — prominent, top of chest */
+.chest-viewers {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 12px 0 10px;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #0a0a0c 0%, #14141a 100%);
+  border: 2px solid;
+  border-color: #050507 #2a2a32 #2a2a32 #050507;
+  box-shadow:
+    inset 0 0 0 1px rgba(201, 168, 76, 0.15),
+    inset 0 2px 6px rgba(0, 0, 0, 0.6),
+    0 0 12px rgba(0, 0, 0, 0.4);
+  font-family: 'Courier New', monospace;
+  font-weight: 900;
+  text-transform: uppercase;
+  /* Classic Minecraft text shadow */
+  text-shadow: 2px 2px 0 #000;
+}
+
+.chest-viewers-label {
+  font-size: 11px;
+  color: #aaaaaa;
+  letter-spacing: 0.15em;
+}
+
+.chest-viewers-count {
+  font-size: 24px;
+  color: #ffffff;
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  min-width: 24px;
+  text-align: center;
+  /* Slightly thicker shadow for the big number */
+  text-shadow: 3px 3px 0 #000, 0 0 14px rgba(255, 255, 255, 0.2);
+}
+
+.chest-viewers-count--bump {
+  animation: count-bump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes count-bump {
+  0% { transform: scale(1); color: #ffffff; }
+  40% { transform: scale(1.5); color: #55ff55; text-shadow: 3px 3px 0 #000, 0 0 18px rgba(85, 255, 85, 0.6); }
+  100% { transform: scale(1); color: #ffffff; }
+}
+
+.chest-viewers-status {
+  font-size: 11px;
+  color: #ff5555;
+  letter-spacing: 0.15em;
+  padding: 3px 8px;
+  background: rgba(255, 85, 85, 0.1);
+  border: 1px solid rgba(255, 85, 85, 0.4);
+  animation: status-blink 2s ease-in-out infinite;
+}
+
+@keyframes status-blink {
+  0%, 100% { opacity: 0.85; }
+  50% { opacity: 1; box-shadow: 0 0 12px rgba(255, 85, 85, 0.4); }
+}
+
+.chest-viewers-status--claimed {
+  color: #55ff55;
+  background: rgba(85, 255, 85, 0.12);
+  border-color: rgba(85, 255, 85, 0.5);
+  animation: none;
+  text-shadow: 2px 2px 0 #000, 0 0 10px rgba(85, 255, 85, 0.5);
+}
+
+/* Footer */
+.chest-footer {
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 10px;
+  color: rgba(201, 168, 76, 0.3);
+  letter-spacing: 0.15em;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(201, 168, 76, 0.1);
+}
+
+/* ── Trophy / Shrine (SOLD state) ── */
+.chest-slot.sold {
+  background:
+    radial-gradient(circle at center, rgba(255, 215, 0, 0.06) 0%, transparent 70%),
+    linear-gradient(145deg, #1a1810 0%, #14120a 100%);
+  border-color: #5a4a1a #c9a84c #c9a84c #5a4a1a;
+  box-shadow:
+    0 0 24px rgba(255, 215, 0, 0.2),
+    0 0 48px rgba(255, 215, 0, 0.06),
+    inset 0 0 12px rgba(255, 215, 0, 0.04);
+  animation: shrine-glow 3s ease-in-out infinite;
+}
+
+@keyframes shrine-glow {
+  0%, 100% {
+    box-shadow:
+      0 0 24px rgba(255, 215, 0, 0.15),
+      inset 0 0 12px rgba(255, 215, 0, 0.03);
+  }
+  50% {
+    box-shadow:
+      0 0 36px rgba(255, 215, 0, 0.3),
+      0 0 72px rgba(255, 215, 0, 0.08),
+      inset 0 0 16px rgba(255, 215, 0, 0.06);
+  }
+}
+
+.chest-trophy-icon {
+  font-size: 28px;
+  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
+  line-height: 1;
+}
+
+.chest-claimed-label {
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  font-weight: 900;
+  color: #ffd700;
+  letter-spacing: 0.2em;
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+  margin-top: 1px;
+}
+
+.chest-buyer-name {
+  font-family: 'Courier New', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff4b8;
+  letter-spacing: 0.05em;
+  text-shadow: 0 0 4px rgba(255, 215, 0, 0.4);
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.chest-engraving {
+  font-family: 'Courier New', monospace;
+  font-size: 7px;
+  font-style: italic;
+  color: rgba(201, 168, 76, 0.4);
+  letter-spacing: 0.08em;
+  margin-top: 1px;
+}
+
+/* Confetti */
+.confetti-particle {
+  position: absolute;
+  pointer-events: none;
+  animation: confetti-fall 2s ease-out forwards;
+  z-index: 10;
+}
+
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) translateX(0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  20% {
+    transform: translateY(-30px) translateX(var(--confetti-drift, 0)) rotate(calc(var(--confetti-rotation, 360deg) * 0.2)) scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(350px) translateX(var(--confetti-drift, 0)) rotate(var(--confetti-rotation, 360deg)) scale(0.6);
+    opacity: 0;
+  }
+}

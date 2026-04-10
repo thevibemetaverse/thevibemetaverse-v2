@@ -14,6 +14,7 @@ import { initPortals, updatePortals } from './portals.js';
 import { initGrass, updateGrass } from './grass.js';
 import { initSettings, updateSettings } from './settings.js';
 import { initModels } from './models.js';
+import { initChestMenu } from './chest-menu.js';
 import { initDevTools } from './dev-tools.js';
 import { initClouds, updateClouds } from './clouds.js';
 import { initMultiplayer, updateMultiplayer, notifyLocalNameChanged } from './multiplayer.js';
@@ -45,6 +46,7 @@ export function init() {
   initAvatarPicker();
   initPortals(state.scene, state.player);
   initModels();
+  initChestMenu();
   initSettings();
   initDevTools();
   initMultiplayer();
