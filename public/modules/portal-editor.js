@@ -200,7 +200,7 @@ function copySelectedConfig() {
       `PORTAL_PIETER_X = ${pieterXConst};\n` +
       `PORTAL_PIETER_ELEVATION_Y = ${y};\n` +
       `PORTAL_ROW_Z = ${z};\n` +
-      `// rotation (deg): ${rx}, ${ry}, ${rz}`;
+      `PORTAL_PIETER_ROTATION_DEG = [${rx}, ${ry}, ${rz}];`;
   } else if (selectedHandle.kind === 'return') {
     text =
       `// Custom return portal — no dedicated X/Y constants.\n` +

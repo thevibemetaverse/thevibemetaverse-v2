@@ -7,6 +7,7 @@ import {
   PORTAL_LABEL_Y_OFFSET_RATIO,
   PORTAL_GLB_LABEL_SCALE,
   PORTAL_PIETER_X,
+  PORTAL_PIETER_ROTATION_DEG,
   PORTAL_GLOBAL_X_OFFSET,
   PORTAL_VIEW_LEFT_BIAS_X,
   PLAYER_SPAWN_Z,
@@ -17,6 +18,7 @@ import {
   PORTAL_SCATTER_FRONT_MAX,
   PORTAL_SCATTER_MIN_SEPARATION,
   PORTAL_SURFACE_OPACITY,
+  REGISTRY_PORTAL_MANUAL_PLACEMENTS,
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity, setPortalPlayer } from './portal-proximity.js';
@@ -163,6 +165,29 @@ function hasPortalQueryParam() {
   return new URLSearchParams(window.location.search).get('portal') != null;
 }
 
+/** Apply {@link REGISTRY_PORTAL_MANUAL_PLACEMENTS} after scatter (slug-keyed). */
+function applyRegistryPortalManualPlacements(portalList) {
+  for (const p of portalList) {
+    const slug = p.data?.slug;
+    if (!slug) continue;
+    const cfg = REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug];
+    if (!cfg) continue;
+    if (cfg.position) {
+      p.group.position.set(cfg.position[0], cfg.position[1], cfg.position[2]);
+    }
+    if (cfg.rotation) {
+      p.group.rotation.set(
+        THREE.MathUtils.degToRad(cfg.rotation[0]),
+        THREE.MathUtils.degToRad(cfg.rotation[1]),
+        THREE.MathUtils.degToRad(cfg.rotation[2])
+      );
+    }
+    if (cfg.scale != null) {
+      p.group.scale.setScalar(cfg.scale);
+    }
+  }
+}
+
 /** Label for the red return torus — `from_portal` from handoff, else hostname from `ref`. */
 function getReturnPortalLabel() {
   const params = new URLSearchParams(window.location.search);
@@ -240,7 +265,11 @@ export async function initPortals(scene, player) {
       PORTAL_ROW_Z
     ),
   });
-  pieterPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
+  pieterPortal.group.rotation.set(
+    THREE.MathUtils.degToRad(PORTAL_PIETER_ROTATION_DEG[0]),
+    THREE.MathUtils.degToRad(PORTAL_PIETER_ROTATION_DEG[1]),
+    THREE.MathUtils.degToRad(PORTAL_PIETER_ROTATION_DEG[2])
+  );
 
   // Scatter portals in deterministic pseudo-random positions (seeded PRNG),
   // biased into a band in front of spawn so they are visible sooner on load.
@@ -280,14 +309,47 @@ export async function initPortals(scene, player) {
     portals[i].group.lookAt(spawnPos.x, PORTAL_PIETER_ELEVATION_Y, spawnPos.z);
   }
 
+  applyRegistryPortalManualPlacements(portals);
+
   // Replace SDK procedural portal visuals with the GLB model.
-  // Bounds are computed once in loadPortalGlb and reused for every clone.
-  // Tag each group with its current model path so the Portal Editor can
-  // swap portals individually and remember their state.
+  // Bounds are computed once per path in loadPortalGlb and reused for every clone.
+  // Per-slug modelPath in REGISTRY_PORTAL_MANUAL_PLACEMENTS is preloaded here.
+  /** @type {Map<string, { scene: THREE.Object3D, bounds: THREE.Box3 }>} */
+  const portalGlbByPath = new Map();
   if (portalModel && portalBounds) {
+    portalGlbByPath.set(PORTAL_MODEL_PATH, {
+      scene: portalModel,
+      bounds: portalBounds,
+    });
+  }
+  const extraPortalPaths = new Set();
+  for (const p of portals) {
+    const slug = p.data?.slug;
+    const mp =
+      slug && REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug]?.modelPath;
+    if (mp && mp !== PORTAL_MODEL_PATH) extraPortalPaths.add(mp);
+  }
+  await Promise.all(
+    [...extraPortalPaths].map(async (path) => {
+      const r = await loadPortalGlb(path);
+      if (r?.scene && r.bounds) portalGlbByPath.set(path, r);
+    })
+  );
+
+  const defaultGlb = portalGlbByPath.get(PORTAL_MODEL_PATH);
+  if (defaultGlb?.scene && defaultGlb?.bounds) {
     for (let i = 0; i < portals.length; i++) {
-      replacePortalWithModel(portals[i].group, portalModel, portalBounds);
-      portals[i].group.userData._portalModelPath = PORTAL_MODEL_PATH;
+      const slug = portals[i].data?.slug;
+      const cfg = slug ? REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug] : undefined;
+      const wantPath = cfg?.modelPath ?? PORTAL_MODEL_PATH;
+      let glb = portalGlbByPath.get(wantPath);
+      let appliedPath = wantPath;
+      if (!glb?.scene || !glb?.bounds) {
+        glb = defaultGlb;
+        appliedPath = PORTAL_MODEL_PATH;
+      }
+      replacePortalWithModel(portals[i].group, glb.scene, glb.bounds);
+      portals[i].group.userData._portalModelPath = appliedPath;
     }
   }
 
