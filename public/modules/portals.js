@@ -7,6 +7,7 @@ import {
   PORTAL_LABEL_Y_OFFSET_RATIO,
   PORTAL_GLB_LABEL_SCALE,
   PORTAL_PIETER_X,
+  PORTAL_PIETER_ROTATION_DEG,
   PORTAL_GLOBAL_X_OFFSET,
   PORTAL_VIEW_LEFT_BIAS_X,
   PLAYER_SPAWN_Z,
@@ -17,6 +18,7 @@ import {
   PORTAL_SCATTER_FRONT_MAX,
   PORTAL_SCATTER_MIN_SEPARATION,
   PORTAL_SURFACE_OPACITY,
+  REGISTRY_PORTAL_MANUAL_PLACEMENTS,
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity, setPortalPlayer } from './portal-proximity.js';
@@ -36,6 +38,12 @@ let portals = [];
 let customRefPortal = null;
 let pieterPortal = null;
 let _player = null;
+
+/** Cached portal GLB loads keyed by path; values are Promise<{scene, bounds}|null>. */
+const portalModelCache = new Map();
+/** Callbacks registered before initPortals finishes; fired once after setup. */
+const portalsReadyCallbacks = [];
+let portalsReady = false;
 
 /**
  * Force a visible see-through opacity on the inner disk mesh. Matches by
@@ -71,14 +79,18 @@ function applyPortalSurfaceOpacity(root) {
 }
 
 /**
- * Load the portal GLB once and return both the scene and its local-space
- * bounds. Bounds are identical for every clone (clones share local
- * transforms), so computing them here avoids an N×traversal during init.
+ * Load a portal GLB (memoised by path) and return both the scene and its
+ * local-space bounds. Bounds are identical for every clone (clones share
+ * local transforms), so computing them here avoids an N×traversal during
+ * init. Repeat calls with the same path return the same promise, so the
+ * Portal Editor can swap the registry GLB at runtime without refetching.
  */
-function loadPortalModel() {
-  return new Promise((resolve) => {
+function loadPortalGlb(path) {
+  const cached = portalModelCache.get(path);
+  if (cached) return cached;
+  const promise = new Promise((resolve) => {
     gltfLoader.load(
-      PORTAL_MODEL_PATH,
+      path,
       (gltf) => {
         applyPortalSurfaceOpacity(gltf.scene);
         const bounds = new THREE.Box3().setFromObject(gltf.scene);
@@ -86,11 +98,13 @@ function loadPortalModel() {
       },
       undefined,
       (err) => {
-        console.warn('[Portals] Failed to load portal model:', err);
+        console.warn('[Portals] Failed to load portal model:', path, err);
         resolve(null);
       }
     );
   });
+  portalModelCache.set(path, promise);
+  return promise;
 }
 
 /**
@@ -132,15 +146,46 @@ function replacePortalWithModel(group, sourceModel, sourceBounds) {
   group.add(clone);
 
   // Re-add label sprites (boost scale vs tall GLB arch — see PORTAL_GLB_LABEL_SCALE)
+  // Guard repeat swaps: record the pre-boost scale on userData the first
+  // time we touch a sprite, so subsequent swaps re-apply the boost from the
+  // original baseline instead of compounding it.
   for (const s of label) {
     s.position.set(0, labelY, 0);
-    s.scale.multiplyScalar(PORTAL_GLB_LABEL_SCALE);
+    if (!s.userData._peBaseScale) {
+      s.userData._peBaseScale = s.scale.clone();
+    }
+    s.scale
+      .copy(s.userData._peBaseScale)
+      .multiplyScalar(PORTAL_GLB_LABEL_SCALE);
     group.add(s);
   }
 }
 
 function hasPortalQueryParam() {
   return new URLSearchParams(window.location.search).get('portal') != null;
+}
+
+/** Apply {@link REGISTRY_PORTAL_MANUAL_PLACEMENTS} after scatter (slug-keyed). */
+function applyRegistryPortalManualPlacements(portalList) {
+  for (const p of portalList) {
+    const slug = p.data?.slug;
+    if (!slug) continue;
+    const cfg = REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug];
+    if (!cfg) continue;
+    if (cfg.position) {
+      p.group.position.set(cfg.position[0], cfg.position[1], cfg.position[2]);
+    }
+    if (cfg.rotation) {
+      p.group.rotation.set(
+        THREE.MathUtils.degToRad(cfg.rotation[0]),
+        THREE.MathUtils.degToRad(cfg.rotation[1]),
+        THREE.MathUtils.degToRad(cfg.rotation[2])
+      );
+    }
+    if (cfg.scale != null) {
+      p.group.scale.setScalar(cfg.scale);
+    }
+  }
 }
 
 /** Label for the red return torus — `from_portal` from handoff, else hostname from `ref`. */
@@ -180,7 +225,7 @@ export async function initPortals(scene, player) {
 
   // Load portal model and registry in parallel
   const [portalModelResult, registryResult] = await Promise.all([
-    loadPortalModel(),
+    loadPortalGlb(PORTAL_MODEL_PATH),
     fetchPortalsRegistry(PORTALS_URL).catch((err) => {
       console.warn('[Portals] Could not load portals.json:', err);
       return [];
@@ -220,7 +265,11 @@ export async function initPortals(scene, player) {
       PORTAL_ROW_Z
     ),
   });
-  pieterPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
+  pieterPortal.group.rotation.set(
+    THREE.MathUtils.degToRad(PORTAL_PIETER_ROTATION_DEG[0]),
+    THREE.MathUtils.degToRad(PORTAL_PIETER_ROTATION_DEG[1]),
+    THREE.MathUtils.degToRad(PORTAL_PIETER_ROTATION_DEG[2])
+  );
 
   // Scatter portals in deterministic pseudo-random positions (seeded PRNG),
   // biased into a band in front of spawn so they are visible sooner on load.
@@ -260,11 +309,47 @@ export async function initPortals(scene, player) {
     portals[i].group.lookAt(spawnPos.x, PORTAL_PIETER_ELEVATION_Y, spawnPos.z);
   }
 
+  applyRegistryPortalManualPlacements(portals);
+
   // Replace SDK procedural portal visuals with the GLB model.
-  // Bounds are computed once in loadPortalModel and reused for every clone.
+  // Bounds are computed once per path in loadPortalGlb and reused for every clone.
+  // Per-slug modelPath in REGISTRY_PORTAL_MANUAL_PLACEMENTS is preloaded here.
+  /** @type {Map<string, { scene: THREE.Object3D, bounds: THREE.Box3 }>} */
+  const portalGlbByPath = new Map();
   if (portalModel && portalBounds) {
+    portalGlbByPath.set(PORTAL_MODEL_PATH, {
+      scene: portalModel,
+      bounds: portalBounds,
+    });
+  }
+  const extraPortalPaths = new Set();
+  for (const p of portals) {
+    const slug = p.data?.slug;
+    const mp =
+      slug && REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug]?.modelPath;
+    if (mp && mp !== PORTAL_MODEL_PATH) extraPortalPaths.add(mp);
+  }
+  await Promise.all(
+    [...extraPortalPaths].map(async (path) => {
+      const r = await loadPortalGlb(path);
+      if (r?.scene && r.bounds) portalGlbByPath.set(path, r);
+    })
+  );
+
+  const defaultGlb = portalGlbByPath.get(PORTAL_MODEL_PATH);
+  if (defaultGlb?.scene && defaultGlb?.bounds) {
     for (let i = 0; i < portals.length; i++) {
-      replacePortalWithModel(portals[i].group, portalModel, portalBounds);
+      const slug = portals[i].data?.slug;
+      const cfg = slug ? REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug] : undefined;
+      const wantPath = cfg?.modelPath ?? PORTAL_MODEL_PATH;
+      let glb = portalGlbByPath.get(wantPath);
+      let appliedPath = wantPath;
+      if (!glb?.scene || !glb?.bounds) {
+        glb = defaultGlb;
+        appliedPath = PORTAL_MODEL_PATH;
+      }
+      replacePortalWithModel(portals[i].group, glb.scene, glb.bounds);
+      portals[i].group.userData._portalModelPath = appliedPath;
     }
   }
 
@@ -278,6 +363,102 @@ export async function initPortals(scene, player) {
     });
     customRefPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
   }
+
+  portalsReady = true;
+  for (const cb of portalsReadyCallbacks) {
+    try { cb(); } catch (err) { console.warn('[Portals] onPortalsReady callback threw:', err); }
+  }
+  portalsReadyCallbacks.length = 0;
+}
+
+/**
+ * Register a callback that fires once portal setup is complete. If portals
+ * are already ready when called, fires synchronously on the next microtask.
+ * Mirrors the onModelLoaded pattern in models.js so the Portal Editor can
+ * safely populate its UI despite initPortals being fire-and-forget.
+ */
+export function onPortalsReady(callback) {
+  if (portalsReady) {
+    Promise.resolve().then(callback);
+    return;
+  }
+  portalsReadyCallbacks.push(callback);
+}
+
+/**
+ * Human label for a registry portal, matching how the SDK builds its label
+ * sprite: prefer title, fall back to slug, then the destination hostname.
+ */
+function labelForRegistryPortal(data) {
+  if (data?.title) return data.title;
+  if (data?.slug) return data.slug;
+  if (data?.url) {
+    try {
+      return new URL(data.url).hostname.replace(/^www\./, '');
+    } catch {
+      /* fall through */
+    }
+  }
+  return '(unknown)';
+}
+
+/**
+ * Stable-ordered list of movable portal handles for the Portal Editor.
+ * Each handle exposes a live reference to the portal's THREE.Group, so the
+ * editor can mutate position/rotation directly. Order is pieter first, then
+ * the optional custom return portal, then registry portals in spawn order.
+ */
+export function getMovablePortalHandles() {
+  const handles = [];
+  if (pieterPortal?.group) {
+    handles.push({
+      id: 'pieter',
+      kind: 'pieter',
+      label: 'Pieter (green torus)',
+      group: pieterPortal.group,
+    });
+  }
+  if (customRefPortal?.group) {
+    handles.push({
+      id: 'custom-ref',
+      kind: 'return',
+      label: 'Return (red torus)',
+      group: customRefPortal.group,
+    });
+  }
+  for (let i = 0; i < portals.length; i++) {
+    const p = portals[i];
+    const slug = p?.data?.slug;
+    handles.push({
+      id: `registry:${slug || i}`,
+      kind: 'registry',
+      label: labelForRegistryPortal(p?.data),
+      group: p.group,
+      slug,
+      modelPath: p.group.userData._portalModelPath ?? PORTAL_MODEL_PATH,
+    });
+  }
+  return handles;
+}
+
+/**
+ * Swap a single registry portal's visual to the given GLB in place. The
+ * portal is found by the handle id produced by getMovablePortalHandles
+ * (`registry:<slug or index>`). Mutates the existing .group so proximity
+ * detection — which keys on stable group references — keeps working, and
+ * positions/rotations/scatter layout are untouched. No-ops for non-registry
+ * handles (pieter and return are always tori) or if the GLB fails to load.
+ */
+export async function swapPortalModelByHandleId(handleId, glbPath) {
+  if (!glbPath || !handleId?.startsWith('registry:')) return;
+  const key = handleId.slice('registry:'.length);
+  const target = portals.find((p, i) => (p?.data?.slug ?? String(i)) === key);
+  if (!target) return;
+  if (target.group.userData._portalModelPath === glbPath) return;
+  const result = await loadPortalGlb(glbPath);
+  if (!result) return;
+  replacePortalWithModel(target.group, result.scene, result.bounds);
+  target.group.userData._portalModelPath = glbPath;
 }
 
 export function updatePortals() {

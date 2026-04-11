@@ -16,26 +16,25 @@ import { state } from './state.js';
 /** @type {ModelPlacement[]} */
 export const MODEL_PLACEMENTS = [
   {
-    name: 'eiffel-tower',
-    path: 'assets/models/eiffel_tower.glb',
-    position: [63.5, 0, -100],
-    rotation: [0, -25, 0],
-    scale: 10,
+    name: 'chest-freezer',
+    path: 'assets/models/chest_freezer.glb',
+    position: [43, 3, -38.5],
+    rotation: [0, -50, 0],
+    scale: 0.1,
   },
   {
     name: 'bbq-sauce',
     path: 'assets/models/sweet_baby_rays_bbq_sauce.glb',
-    position: [-32, 5, -35],
-    rotation: [0, 20, 0],
+    position: [35, 5, -51.5],
+    rotation: [0, -25, 0],
     scale: 5,
   },
   {
-    name: 'chest-freezer',
-    path: 'assets/models/chest_freezer.glb',
-    position: [-16, 3, -30],
-    rotation: [0, -385, 0],
-    scale: 0.1,
-    noReceiveShadow: true,
+    name: 'eiffel-tower',
+    path: 'assets/models/eiffel_tower.glb',
+    position: [2, 0, -100.5],
+    rotation: [0, -90, 0],
+    scale: 10,
   },
 ];
 

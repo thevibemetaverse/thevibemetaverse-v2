@@ -54,7 +54,7 @@ export const PORTAL_GLOBAL_X_OFFSET = -25;
  * on +Z and looks toward −Z; −X is left on screen. Negative values shift portals left.
  */
 export const PORTAL_VIEW_LEFT_BIAS_X = -45;
-export const PORTAL_ROW_Z = -12;
+export const PORTAL_ROW_Z = -31.5;
 /** Horizontal gap between portal slots (wider = clearer of avatar arms in T-pose). */
 export const PORTAL_ROW_SPACING = 40;
 /** Shift the whole row in +X (negative = left on screen) so the right portal clears the Jam widget. */
@@ -80,7 +80,12 @@ export const PORTAL_LABEL_Y_OFFSET_RATIO = 0.25;
  */
 export const PORTAL_GLB_LABEL_SCALE = 2.25;
 /** World +X for the green Pieter / Vibeverse torus (right flank; see PORTAL_ROW_OFFSET_X). */
-export const PORTAL_PIETER_X = 18;
+export const PORTAL_PIETER_X = 70;
+/**
+ * Euler rotation for the Pieter torus (degrees [x, y, z]). Used instead of lookAt
+ * so placement matches authored values from the portal editor.
+ */
+export const PORTAL_PIETER_ROTATION_DEG = [0, 24.9, 0];
 /**
  * Custom return portal (?portal): offset along +Z from {@link PLAYER_SPAWN_Z} (player faces −Z).
  * Kept moderate so the torus stays reachable without a long walk; still on the camera side of spawn.
@@ -104,6 +109,50 @@ export const PORTAL_SCATTER_MIN_SEPARATION = 34;
  * material set to opaque — `applyPortalSurfaceOpacity` flips it to transparent.
  */
 export const PORTAL_SURFACE_OPACITY = 0.7;
+
+/**
+ * Manual world placement for registry portals, keyed by `portals.json` slug.
+ * Applied after seeded scatter: each listed slug replaces position / rotation /
+ * scale for that portal only. Slugs omitted here keep scatter + {@link PORTAL_SCALE}.
+ * Rotation is degrees [x, y, z].
+ *
+ * @typedef {Object} RegistryPortalManualPlacement
+ * @property {[number, number, number]} [position]
+ * @property {[number, number, number]} [rotation]
+ * @property {number} [scale]
+ * @property {string} [modelPath] - GLB for this portal (e.g. assets/models/portal_tan.glb)
+ *
+ * @type {Record<string, RegistryPortalManualPlacement>}
+ */
+export const REGISTRY_PORTAL_MANUAL_PLACEMENTS = {
+  'astroxite-com': {
+    position: [73.5, 4.9, 9],
+    rotation: [0, -36.87, 0],
+    modelPath: 'assets/models/portal_grey.glb',
+  },
+  'deatharena-fun': {
+    position: [-49.73, 4.9, 35.39],
+    rotation: [0, 45, 0],
+  },
+  'flight-tarmizi-id': {
+    position: [-101, 5, -13.83],
+    rotation: [0, 65, 0],
+  },
+  'krunker-io': {
+    position: [-116, 4.9, 12.7],
+    rotation: [0, 56.77, 0],
+    modelPath: 'assets/models/portal_grey.glb',
+  },
+  'motel-floorsjs-com': {
+    position: [68.5, 4.9, -24.36],
+    rotation: [0, -45, 0],
+  },
+  'synthwave-grid-bounce': {
+    position: [-33, 4.9, -3.26],
+    rotation: [0, 40, 0],
+    modelPath: 'assets/models/portal_tan.glb',
+  },
+};
 
 // -- Renderer --
 export const MAX_PIXEL_RATIO = 2;
