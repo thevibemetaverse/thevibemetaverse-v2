@@ -10,6 +10,10 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
  */
 const dracoLoader = new DRACOLoader();
 dracoLoader.setDecoderPath('/vendor/draco/');
+// Kick off the WASM fetch at module-load time so it overlaps with other
+// startup work (registry fetch, scene setup) instead of blocking the first
+// GLB decode. Cheap if no draco-compressed asset is ever loaded.
+dracoLoader.preload();
 
 export const gltfLoader = new GLTFLoader();
 gltfLoader.setMeshoptDecoder(MeshoptDecoder);

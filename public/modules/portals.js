@@ -70,14 +70,19 @@ function applyPortalSurfaceOpacity(root) {
   }
 }
 
-/** Load the portal GLB once and return the scene. */
+/**
+ * Load the portal GLB once and return both the scene and its local-space
+ * bounds. Bounds are identical for every clone (clones share local
+ * transforms), so computing them here avoids an N×traversal during init.
+ */
 function loadPortalModel() {
   return new Promise((resolve) => {
     gltfLoader.load(
       PORTAL_MODEL_PATH,
       (gltf) => {
         applyPortalSurfaceOpacity(gltf.scene);
-        resolve(gltf.scene);
+        const bounds = new THREE.Box3().setFromObject(gltf.scene);
+        resolve({ scene: gltf.scene, bounds });
       },
       undefined,
       (err) => {
@@ -91,8 +96,12 @@ function loadPortalModel() {
 /**
  * Replace the procedural SDK portal visuals in a group with a clone of the GLB model.
  * Keeps the label sprite from the original group.
+ *
+ * `sourceBounds` is the local-space Box3 of `sourceModel`, computed once by
+ * the caller and reused across every portal — clones share local transforms,
+ * so the bounds are identical and there's no reason to re-traverse per clone.
  */
-function replacePortalWithModel(group, sourceModel) {
+function replacePortalWithModel(group, sourceModel, sourceBounds) {
   // Preserve the label sprite (last child is typically the sprite)
   const label = [];
   group.traverse((child) => {
@@ -112,13 +121,12 @@ function replacePortalWithModel(group, sourceModel) {
   // Remove all children
   while (group.children.length) group.remove(group.children[0]);
 
-  // Measure the replacement model before adding it to a transformed parent.
   // Object3D.clone() shares materials by reference, so the opacity applied
   // once in applyPortalSurfaceOpacity() carries to every portal here.
   const clone = sourceModel.clone();
-  const bounds = new THREE.Box3().setFromObject(clone);
-  const modelHeight = Math.max(0.001, bounds.max.y - bounds.min.y);
-  const labelY = bounds.max.y + modelHeight * PORTAL_LABEL_Y_OFFSET_RATIO;
+  const modelHeight = Math.max(0.001, sourceBounds.max.y - sourceBounds.min.y);
+  const labelY =
+    sourceBounds.max.y + modelHeight * PORTAL_LABEL_Y_OFFSET_RATIO;
 
   // Add GLB clone
   group.add(clone);
@@ -170,14 +178,16 @@ export async function initPortals(scene, player) {
   _player = player;
   setPortalPlayer(player);
 
-  // Load portal-v2 model and registry in parallel
-  const [portalModel, registryResult] = await Promise.all([
+  // Load portal model and registry in parallel
+  const [portalModelResult, registryResult] = await Promise.all([
     loadPortalModel(),
     fetchPortalsRegistry(PORTALS_URL).catch((err) => {
       console.warn('[Portals] Could not load portals.json:', err);
       return [];
     }),
   ]);
+  const portalModel = portalModelResult?.scene ?? null;
+  const portalBounds = portalModelResult?.bounds ?? null;
   let data = registryResult;
 
   const wantCustomPortal = hasPortalQueryParam();
@@ -250,10 +260,11 @@ export async function initPortals(scene, player) {
     portals[i].group.lookAt(spawnPos.x, PORTAL_PIETER_ELEVATION_Y, spawnPos.z);
   }
 
-  // Replace SDK procedural portal visuals with the GLB model
-  if (portalModel) {
+  // Replace SDK procedural portal visuals with the GLB model.
+  // Bounds are computed once in loadPortalModel and reused for every clone.
+  if (portalModel && portalBounds) {
     for (let i = 0; i < portals.length; i++) {
-      replacePortalWithModel(portals[i].group, portalModel);
+      replacePortalWithModel(portals[i].group, portalModel, portalBounds);
     }
   }
 
