@@ -16,6 +16,7 @@ import { initSettings, updateSettings } from './settings.js';
 import { initModels } from './models.js';
 import { initChestMenu } from './chest-menu.js';
 import { initDevTools } from './dev-tools.js';
+import { initPortalEditor } from './portal-editor.js';
 import { initClouds, updateClouds } from './clouds.js';
 import { initMultiplayer, updateMultiplayer, notifyLocalNameChanged } from './multiplayer.js';
 import { initNametag, setLocalNametagVisible } from './nametag.js';
@@ -49,6 +50,7 @@ export function init() {
   initChestMenu();
   initSettings();
   initDevTools();
+  initPortalEditor();
   initMultiplayer();
   initWebXR();
 
