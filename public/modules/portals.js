@@ -16,6 +16,7 @@ import {
   PORTAL_SCATTER_FRONT_MIN,
   PORTAL_SCATTER_FRONT_MAX,
   PORTAL_SCATTER_MIN_SEPARATION,
+  PORTAL_SURFACE_OPACITY,
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity, setPortalPlayer } from './portal-proximity.js';
@@ -23,60 +24,69 @@ import { gltfLoader } from './loader.js';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
-const PORTALS_ORIGIN = 'https://portal.thevibemetaverse.com';
-const PORTAL_V2_MODEL_PATH = 'assets/models/portal-v2.glb';
+/**
+ * Default visual for every registry portal. Other variants
+ * (portal_grey.glb, portal_tan.glb) live alongside this file and can be
+ * swapped in here without other code changes.
+ */
+const PORTAL_MODEL_PATH = 'assets/models/portal_black_and_gold.glb';
 
-const textureLoader = new THREE.TextureLoader();
 const portalClock = new THREE.Clock();
 let portals = [];
 let customRefPortal = null;
 let pieterPortal = null;
 let _player = null;
 
-/** Inner disk in portal-v2.glb — named `PortalSurface` in the asset. */
-function tintPortalSurface(root, colorHex, imageUrl) {
-  const c = new THREE.Color(colorHex);
+/**
+ * Force a visible see-through opacity on the inner disk mesh. Matches by
+ * mesh-name intent: the artist names the disk "Portal Surface" (vs. the
+ * outer "Portal" frame). The match is a case-insensitive contains so
+ * trailing whitespace and minor capitalization changes don't break it.
+ *
+ * We force `transparent = true` in code rather than relying on the source
+ * GLB's alphaMode — re-exports tend to drop that flag silently.
+ */
+function applyPortalSurfaceOpacity(root) {
+  let touched = 0;
   root.traverse((child) => {
-    if (!child.isMesh || child.name !== 'PortalSurface') return;
-    // Clone materials so each portal gets its own instance
-    if (Array.isArray(child.material)) {
-      child.material = child.material.map((m) => m.clone());
-    } else {
-      child.material = child.material.clone();
-    }
-    const materials = Array.isArray(child.material)
+    if (!child.isMesh) return;
+    if (!/surface/i.test(child.name || '')) return;
+    const mats = Array.isArray(child.material)
       ? child.material
       : [child.material];
-    for (const mat of materials) {
-      if (mat?.color) mat.color.copy(c);
-      if (mat?.emissive) mat.emissive.set(0x000000);
-    }
-    // Apply the portal image from the SDK registry as the surface texture
-    if (imageUrl) {
-      textureLoader.load(imageUrl, (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        const mat = Array.isArray(child.material)
-          ? child.material[0]
-          : child.material;
-        if (mat) {
-          mat.map = tex;
-          mat.color.set(0xffffff);
-          mat.needsUpdate = true;
-        }
-      });
+    for (const mat of mats) {
+      if (!mat) continue;
+      mat.transparent = true;
+      mat.opacity = PORTAL_SURFACE_OPACITY;
+      mat.depthWrite = false;
+      mat.needsUpdate = true;
+      touched++;
     }
   });
+  if (touched === 0) {
+    console.warn(
+      `[Portals] no mesh matching /surface/i found in ${PORTAL_MODEL_PATH} — inner disk will render solid. The artist must name the disk mesh something containing "Surface".`
+    );
+  }
 }
 
-/** Load the portal-v2 GLB once and return the scene. */
+/**
+ * Load the portal GLB once and return both the scene and its local-space
+ * bounds. Bounds are identical for every clone (clones share local
+ * transforms), so computing them here avoids an N×traversal during init.
+ */
 function loadPortalModel() {
   return new Promise((resolve) => {
     gltfLoader.load(
-      PORTAL_V2_MODEL_PATH,
-      (gltf) => resolve(gltf.scene),
+      PORTAL_MODEL_PATH,
+      (gltf) => {
+        applyPortalSurfaceOpacity(gltf.scene);
+        const bounds = new THREE.Box3().setFromObject(gltf.scene);
+        resolve({ scene: gltf.scene, bounds });
+      },
       undefined,
       (err) => {
-        console.warn('[Portals] Failed to load portal-v2 model:', err);
+        console.warn('[Portals] Failed to load portal model:', err);
         resolve(null);
       }
     );
@@ -85,9 +95,13 @@ function loadPortalModel() {
 
 /**
  * Replace the procedural SDK portal visuals in a group with a clone of the GLB model.
- * Keeps the label sprite and a compatible portalMat for the update loop.
+ * Keeps the label sprite from the original group.
+ *
+ * `sourceBounds` is the local-space Box3 of `sourceModel`, computed once by
+ * the caller and reused across every portal — clones share local transforms,
+ * so the bounds are identical and there's no reason to re-traverse per clone.
  */
-function replacePortalWithModel(group, sourceModel, imageUrl) {
+function replacePortalWithModel(group, sourceModel, sourceBounds) {
   // Preserve the label sprite (last child is typically the sprite)
   const label = [];
   group.traverse((child) => {
@@ -107,12 +121,12 @@ function replacePortalWithModel(group, sourceModel, imageUrl) {
   // Remove all children
   while (group.children.length) group.remove(group.children[0]);
 
-  // Measure the replacement model before adding it to a transformed parent.
+  // Object3D.clone() shares materials by reference, so the opacity applied
+  // once in applyPortalSurfaceOpacity() carries to every portal here.
   const clone = sourceModel.clone();
-  tintPortalSurface(clone, 0x000000, imageUrl);
-  const bounds = new THREE.Box3().setFromObject(clone);
-  const modelHeight = Math.max(0.001, bounds.max.y - bounds.min.y);
-  const labelY = bounds.max.y + modelHeight * PORTAL_LABEL_Y_OFFSET_RATIO;
+  const modelHeight = Math.max(0.001, sourceBounds.max.y - sourceBounds.min.y);
+  const labelY =
+    sourceBounds.max.y + modelHeight * PORTAL_LABEL_Y_OFFSET_RATIO;
 
   // Add GLB clone
   group.add(clone);
@@ -123,11 +137,6 @@ function replacePortalWithModel(group, sourceModel, imageUrl) {
     s.scale.multiplyScalar(PORTAL_GLB_LABEL_SCALE);
     group.add(s);
   }
-
-  // Keep a dummy portalMat so the update loop doesn't error
-  group.userData.portalMat = {
-    uniforms: { time: { value: 0 } },
-  };
 }
 
 function hasPortalQueryParam() {
@@ -169,14 +178,16 @@ export async function initPortals(scene, player) {
   _player = player;
   setPortalPlayer(player);
 
-  // Load portal-v2 model and registry in parallel
-  const [portalModel, registryResult] = await Promise.all([
+  // Load portal model and registry in parallel
+  const [portalModelResult, registryResult] = await Promise.all([
     loadPortalModel(),
     fetchPortalsRegistry(PORTALS_URL).catch((err) => {
       console.warn('[Portals] Could not load portals.json:', err);
       return [];
     }),
   ]);
+  const portalModel = portalModelResult?.scene ?? null;
+  const portalBounds = portalModelResult?.bounds ?? null;
   let data = registryResult;
 
   const wantCustomPortal = hasPortalQueryParam();
@@ -187,7 +198,8 @@ export async function initPortals(scene, player) {
   registryData.reverse();
 
   // Strip portalImageUrl so the SDK doesn't try to load relative paths (404s).
-  // We apply the images ourselves on the GLB PortalSurface after replacement.
+  // We replace the SDK procedural visuals entirely with the GLB model below;
+  // the per-destination thumbnails were dropped in favour of label sprites.
   const rowEntries = registryData.map((p) => ({ ...p, portalImageUrl: '' }));
   portals = spawnPortalRow(scene, rowEntries, {
     rowZ: PORTAL_ROW_Z,
@@ -248,14 +260,11 @@ export async function initPortals(scene, player) {
     portals[i].group.lookAt(spawnPos.x, PORTAL_PIETER_ELEVATION_Y, spawnPos.z);
   }
 
-  // Replace SDK procedural portal visuals with the GLB model
-  if (portalModel) {
+  // Replace SDK procedural portal visuals with the GLB model.
+  // Bounds are computed once in loadPortalModel and reused for every clone.
+  if (portalModel && portalBounds) {
     for (let i = 0; i < portals.length; i++) {
-      const imgPath = registryData[i]?.portalImageUrl;
-      const imgUrl = imgPath
-        ? new URL('PORTALS/' + imgPath, PORTALS_ORIGIN + '/').href
-        : null;
-      replacePortalWithModel(portals[i].group, portalModel, imgUrl);
+      replacePortalWithModel(portals[i].group, portalModel, portalBounds);
     }
   }
 
@@ -277,11 +286,6 @@ export function updatePortals() {
   // Animate torus particle effects
   if (customRefPortal) animateTorusPortal(customRefPortal, elapsed);
   if (pieterPortal) animateTorusPortal(pieterPortal, elapsed);
-
-  // Animate SDK portal shader uniforms
-  for (const portal of portals) {
-    portal.group.userData.portalMat.uniforms.time.value = elapsed;
-  }
 
   // Proximity detection and navigation
   checkProximity(_player, customRefPortal, pieterPortal, portals);
