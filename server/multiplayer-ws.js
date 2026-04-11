@@ -33,6 +33,9 @@ export function attachMultiplayerWebSocket(server) {
   /** @type {Map<import('ws').WebSocket, { id: string, avatarUrl: string, name: string, lastSeen: number }>} */
   const sockets = new Map();
 
+  /** @type {Map<string, number>} */
+  const itemViewCounts = new Map();
+
   function broadcast(obj, except) {
     const raw = JSON.stringify(obj);
     for (const client of wss.clients) {
@@ -97,6 +100,7 @@ export function attachMultiplayerWebSocket(server) {
             type: 'welcome',
             id,
             players: others,
+            itemViewCounts: Object.fromEntries(itemViewCounts),
           })
         );
         broadcast({ type: 'player_joined', id, avatarUrl, name }, ws);
@@ -125,6 +129,17 @@ export function attachMultiplayerWebSocket(server) {
             : meta.name;
         meta.name = next;
         broadcast({ type: 'player_name', id: meta.id, name: next }, ws);
+        return;
+      }
+
+      if (msg.type === 'item_viewed') {
+        const itemId = typeof msg.itemId === 'string' ? msg.itemId.slice(0, 64) : null;
+        if (!itemId) return;
+        itemViewCounts.set(itemId, (itemViewCounts.get(itemId) ?? 0) + 1);
+        const raw = JSON.stringify({ type: 'item_view_count', itemId, count: itemViewCounts.get(itemId) });
+        for (const client of wss.clients) {
+          if (client.readyState === 1) client.send(raw);
+        }
         return;
       }
 

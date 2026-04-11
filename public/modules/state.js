@@ -7,7 +7,7 @@ import {
 } from './constants.js';
 
 /**
- * @typedef {'EXPLORING' | 'PROMPTING'} GameState
+ * @typedef {'EXPLORING' | 'PROMPTING' | 'CHEST_MENU'} GameState
  */
 
 /**
@@ -74,6 +74,10 @@ import {
  * @property {Set<string>} occupiedCells - Grid cell keys ("x,z") claimed by placed objects
  * @property {THREE.Object3D[]} placedObjects - AI-generated objects added to the scene
  * @property {boolean} devMode - Whether dev tools are active
+ * @property {boolean} chestMenuOpen - Whether the chest menu overlay is visible
+ * @property {boolean} meatSold - Whether the legendary meat has been purchased
+ * @property {string} meatBuyer - Display name of the buyer
+ * @property {Map<string, number>} itemViewCounts - Per-item global view counts synced from server
  *
  * @property {string | null} localPlayerId - Assigned by multiplayer welcome (UUID).
  * @property {boolean} localPlayerMoving - Updated each frame from movement input (for network).
@@ -125,6 +129,10 @@ export const state = {
   occupiedCells: new Set(),
   placedObjects: [],
   devMode: false,
+  chestMenuOpen: false,
+  meatSold: false,
+  meatBuyer: '',
+  itemViewCounts: new Map(),
 
   localPlayerId: null,
   localPlayerMoving: false,

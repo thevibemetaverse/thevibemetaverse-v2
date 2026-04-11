@@ -1,0 +1,239 @@
+// @ts-check
+import * as THREE from 'three';
+import { state } from './state.js';
+import { getModel, onModelLoaded } from './models.js';
+import { createMeatPreview } from './chest-meat-preview.js';
+import { sendItemViewed, onItemViewCount } from './multiplayer.js';
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+/** @type {{ x: number, y: number }} */
+let pointerStart = { x: 0, y: 0 };
+
+/** @type {HTMLElement} */
+let overlay;
+
+/** @type {HTMLElement} */
+let meatSlot;
+
+/** @type {HTMLElement} */
+let meatItem;
+
+/** @type {HTMLElement} */
+let viewCountEl;
+
+/** @type {THREE.Mesh[]} */
+let freezerMeshes = [];
+
+function createDOM() {
+  overlay = document.createElement('div');
+  overlay.id = 'chest-overlay';
+
+  const container = document.createElement('div');
+  container.className = 'chest-container';
+
+  // Title bar
+  const titleBar = document.createElement('div');
+  titleBar.className = 'chest-title-bar';
+
+  const title = document.createElement('span');
+  title.className = 'chest-title';
+  title.textContent = 'Smoked Meat';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'chest-close';
+  closeBtn.innerHTML = '&times;';
+  closeBtn.addEventListener('click', closeChestMenu);
+
+  titleBar.append(title, closeBtn);
+
+  // Rarity badge
+  const rarity = document.createElement('div');
+  rarity.className = 'chest-rarity';
+  rarity.textContent = 'ULTRA LEGENDARY';
+
+  // Grid
+  const grid = document.createElement('div');
+  grid.className = 'chest-grid';
+
+  for (let i = 0; i < 16; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'chest-slot';
+
+    if (i === 0) {
+      slot.classList.add('has-item');
+      meatSlot = slot;
+
+      meatItem = document.createElement('div');
+      meatItem.className = 'chest-item';
+
+      const glow = document.createElement('div');
+      glow.className = 'chest-item-glow';
+
+      // Light beam that appears on hover
+      const beam = document.createElement('div');
+      beam.className = 'chest-item-beam';
+
+      // 3D smoked brisket preview (Three.js canvas)
+      const meatCanvas = createMeatPreview();
+
+      const name = document.createElement('span');
+      name.className = 'chest-item-name';
+      name.textContent = 'Wagyu A5 Brisket';
+
+      // Edition tooltip — visible on hover
+      const edition = document.createElement('span');
+      edition.className = 'chest-item-edition';
+      edition.textContent = '1 of 1';
+
+      meatItem.append(beam, glow, meatCanvas);
+      // Tooltips are siblings of .chest-item (not children) so they don't
+      // inherit the item's hover scale/translate — they stay put and float
+      // cleanly above/below the slot.
+      slot.append(meatItem, name, edition);
+    }
+
+    grid.appendChild(slot);
+  }
+
+  // Price reveal — lives below grid, revealed on item hover
+  const priceReveal = document.createElement('div');
+  priceReveal.className = 'chest-price-reveal';
+
+  const priceAmount = document.createElement('span');
+  priceAmount.className = 'chest-price-amount';
+  priceAmount.textContent = '$1,000,000';
+
+  const priceLabel = document.createElement('span');
+  priceLabel.className = 'chest-price-label';
+  priceLabel.textContent = 'ACQUIRE';
+
+  priceReveal.append(priceAmount, priceLabel);
+
+  // Minecraft-style viewer counter — prominent, top of chest
+  const viewerRow = document.createElement('div');
+  viewerRow.className = 'chest-viewers';
+
+  const viewerLabel = document.createElement('span');
+  viewerLabel.className = 'chest-viewers-label';
+  viewerLabel.textContent = 'VIEWED';
+
+  viewCountEl = document.createElement('span');
+  viewCountEl.className = 'chest-viewers-count';
+  viewCountEl.textContent = String(state.itemViewCounts.get('wagyu-a5-brisket') ?? 0);
+
+  const viewerStatus = document.createElement('span');
+  viewerStatus.className = 'chest-viewers-status';
+  viewerStatus.textContent = 'UNCLAIMED';
+
+  viewerRow.append(viewerLabel, viewCountEl, viewerStatus);
+
+  // Tagline — the one killer line
+  const tagline = document.createElement('div');
+  tagline.className = 'chest-tagline';
+  tagline.textContent = 'Be the person who bought it.';
+
+  // Footer
+  const footer = document.createElement('div');
+  footer.className = 'chest-footer';
+  footer.textContent = 'Smoked Meat Collection';
+
+  container.append(titleBar, viewerRow, rarity, grid, priceReveal, tagline, footer);
+  overlay.appendChild(container);
+  document.body.appendChild(overlay);
+
+  // Hover state on slot (not item) — item scales/lifts on hover, which
+  // would cause hover flicker if we listened on the item itself.
+  meatSlot.addEventListener('mouseenter', () => {
+    if (!state.meatSold) container.classList.add('item-hovered');
+  });
+  meatSlot.addEventListener('mouseleave', () => {
+    container.classList.remove('item-hovered');
+  });
+
+  // Close on backdrop click
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeChestMenu();
+  });
+}
+
+function openChestMenu() {
+  state.gameState = 'CHEST_MENU';
+  state.chestMenuOpen = true;
+  state.isPointerDown = false;
+  for (const k in state.keys) delete state.keys[k];
+
+  if (!state.meatSold) {
+    sendItemViewed('wagyu-a5-brisket');
+  }
+
+  overlay.classList.add('open');
+}
+
+function closeChestMenu() {
+  state.gameState = 'EXPLORING';
+  state.chestMenuOpen = false;
+  overlay.classList.remove('open');
+}
+
+function setupClickDetection() {
+  const canvas = state.renderer.domElement;
+
+  canvas.addEventListener('pointerdown', (e) => {
+    pointerStart.x = e.clientX;
+    pointerStart.y = e.clientY;
+  });
+
+  canvas.addEventListener('click', (e) => {
+    if (state.gameState !== 'EXPLORING') return;
+
+    // Drag discrimination — skip if pointer moved too far (was orbit drag)
+    const dx = e.clientX - pointerStart.x;
+    const dy = e.clientY - pointerStart.y;
+    if (Math.hypot(dx, dy) > 5) return;
+
+    if (freezerMeshes.length === 0) return;
+
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, state.camera);
+
+    const hits = raycaster.intersectObjects(freezerMeshes, false);
+    if (hits.length > 0) {
+      openChestMenu();
+    }
+  });
+}
+
+function setupEscListener() {
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && state.chestMenuOpen) {
+      closeChestMenu();
+    }
+  });
+}
+
+export function initChestMenu() {
+  createDOM();
+  setupClickDetection();
+  setupEscListener();
+
+  onItemViewCount((itemId, count) => {
+    if (itemId !== 'wagyu-a5-brisket') return;
+    viewCountEl.textContent = String(count);
+    viewCountEl.classList.remove('chest-viewers-count--bump');
+    void viewCountEl.offsetWidth;
+    viewCountEl.classList.add('chest-viewers-count--bump');
+  });
+
+  onModelLoaded(() => {
+    const freezer = getModel('chest-freezer');
+    if (!freezer || freezerMeshes.length > 0) return;
+    freezer.traverse((child) => {
+      if (/** @type {THREE.Mesh} */ (child).isMesh) {
+        freezerMeshes.push(/** @type {THREE.Mesh} */ (child));
+      }
+    });
+  });
+}
