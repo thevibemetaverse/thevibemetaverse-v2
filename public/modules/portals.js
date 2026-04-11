@@ -90,7 +90,7 @@ function loadPortalModel() {
 
 /**
  * Replace the procedural SDK portal visuals in a group with a clone of the GLB model.
- * Keeps the label sprite and a compatible portalMat for the update loop.
+ * Keeps the label sprite from the original group.
  */
 function replacePortalWithModel(group, sourceModel) {
   // Preserve the label sprite (last child is typically the sprite)
@@ -129,11 +129,6 @@ function replacePortalWithModel(group, sourceModel) {
     s.scale.multiplyScalar(PORTAL_GLB_LABEL_SCALE);
     group.add(s);
   }
-
-  // Keep a dummy portalMat so the update loop doesn't error
-  group.userData.portalMat = {
-    uniforms: { time: { value: 0 } },
-  };
 }
 
 function hasPortalQueryParam() {
@@ -280,11 +275,6 @@ export function updatePortals() {
   // Animate torus particle effects
   if (customRefPortal) animateTorusPortal(customRefPortal, elapsed);
   if (pieterPortal) animateTorusPortal(pieterPortal, elapsed);
-
-  // Animate SDK portal shader uniforms
-  for (const portal of portals) {
-    portal.group.userData.portalMat.uniforms.time.value = elapsed;
-  }
 
   // Proximity detection and navigation
   checkProximity(_player, customRefPortal, pieterPortal, portals);
