@@ -259,17 +259,13 @@ export async function initPortals(scene, player) {
     }
   }
 
-  // Red return portal (?portal) — centered behind spawn, a few units along +Z.
+  // Red return portal (?portal) — on spawn X/Z axis, +Z behind default orbit camera (player faces −Z).
   if (wantCustomPortal) {
     customRefPortal = createTorusPortal(scene, {
       color: 0xff0000,
       label: getReturnPortalLabel(),
       name: 'custom-ref-portal',
-      position: new THREE.Vector3(
-        PORTAL_GLOBAL_X_OFFSET + PORTAL_VIEW_LEFT_BIAS_X,
-        PORTAL_PIETER_ELEVATION_Y,
-        PORTAL_RETURN_Z
-      ),
+      position: new THREE.Vector3(0, PORTAL_PIETER_ELEVATION_Y, PORTAL_RETURN_Z),
     });
     customRefPortal.group.lookAt(0, PORTAL_PIETER_ELEVATION_Y, PLAYER_SPAWN_Z);
   }

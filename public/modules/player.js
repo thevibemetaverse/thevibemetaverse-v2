@@ -5,6 +5,7 @@ import {
   PLAYER_MOVE_SPEED,
   PLAYER_WORLD_LIMIT,
   PLAYER_SPAWN_Z,
+  PLAYER_SPAWN_YAW,
   GAMEPAD_ORBIT_SPEED,
   VR_FP_COMFORT_YAW_SPEED,
 } from './constants.js';
@@ -12,6 +13,7 @@ import {
 export function createPlayer() {
   state.player = new THREE.Group();
   state.player.position.set(0, 0, PLAYER_SPAWN_Z);
+  state.player.rotation.y = PLAYER_SPAWN_YAW;
   state.scene.add(state.player);
 }
 
