@@ -99,9 +99,9 @@ export const PORTAL_SCATTER_FRONT_MAX = 135;
 /** Minimum horizontal (XZ) distance between placed portal centers. */
 export const PORTAL_SCATTER_MIN_SEPARATION = 34;
 /**
- * Opacity applied to the portal-v2 inner disk material. The GLB authors the disk
- * with alphaMode: BLEND, but its baked texture has no alpha channel — so without
- * an explicit opacity it still renders solid.
+ * Opacity applied to the inner disk of every portal model (the mesh whose name
+ * contains "Surface"). Forced in code because portal GLBs ship with their disk
+ * material set to opaque — `applyPortalSurfaceOpacity` flips it to transparent.
  */
 export const PORTAL_SURFACE_OPACITY = 0.7;
 

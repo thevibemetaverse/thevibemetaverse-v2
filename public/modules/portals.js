@@ -24,7 +24,12 @@ import { gltfLoader } from './loader.js';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
-const PORTAL_V2_MODEL_PATH = 'assets/models/portal-v2-draco.glb';
+/**
+ * Default visual for every registry portal. Other variants
+ * (portal_grey.glb, portal_tan.glb) live alongside this file and can be
+ * swapped in here without other code changes.
+ */
+const PORTAL_MODEL_PATH = 'assets/models/portal_black_and_gold.glb';
 
 const portalClock = new THREE.Clock();
 let portals = [];
@@ -33,46 +38,50 @@ let pieterPortal = null;
 let _player = null;
 
 /**
- * Find any mesh whose material is BLEND-transparent in source and force a
- * visible see-through opacity. Detection is by material flag, not mesh name,
- * so re-exports that rename the inner disk node still work as long as the
- * artist keeps the disk material set to "transparent / blend" in the source.
+ * Force a visible see-through opacity on the inner disk mesh. Matches by
+ * mesh-name intent: the artist names the disk "Portal Surface" (vs. the
+ * outer "Portal" frame). The match is a case-insensitive contains so
+ * trailing whitespace and minor capitalization changes don't break it.
+ *
+ * We force `transparent = true` in code rather than relying on the source
+ * GLB's alphaMode — re-exports tend to drop that flag silently.
  */
 function applyPortalSurfaceOpacity(root) {
   let touched = 0;
   root.traverse((child) => {
     if (!child.isMesh) return;
+    if (!/surface/i.test(child.name || '')) return;
     const mats = Array.isArray(child.material)
       ? child.material
       : [child.material];
     for (const mat of mats) {
-      if (mat?.transparent) {
-        mat.opacity = PORTAL_SURFACE_OPACITY;
-        mat.depthWrite = false;
-        mat.needsUpdate = true;
-        touched++;
-      }
+      if (!mat) continue;
+      mat.transparent = true;
+      mat.opacity = PORTAL_SURFACE_OPACITY;
+      mat.depthWrite = false;
+      mat.needsUpdate = true;
+      touched++;
     }
   });
   if (touched === 0) {
     console.warn(
-      `[Portals] no transparent material found in ${PORTAL_V2_MODEL_PATH} — inner disk will render solid. Check the source GLB's alphaMode.`
+      `[Portals] no mesh matching /surface/i found in ${PORTAL_MODEL_PATH} — inner disk will render solid. The artist must name the disk mesh something containing "Surface".`
     );
   }
 }
 
-/** Load the portal-v2 GLB once and return the scene. */
+/** Load the portal GLB once and return the scene. */
 function loadPortalModel() {
   return new Promise((resolve) => {
     gltfLoader.load(
-      PORTAL_V2_MODEL_PATH,
+      PORTAL_MODEL_PATH,
       (gltf) => {
         applyPortalSurfaceOpacity(gltf.scene);
         resolve(gltf.scene);
       },
       undefined,
       (err) => {
-        console.warn('[Portals] Failed to load portal-v2 model:', err);
+        console.warn('[Portals] Failed to load portal model:', err);
         resolve(null);
       }
     );
