@@ -86,7 +86,7 @@ export function setPortalPlayer(player) {
   _player = player;
 }
 
-function navigateToRefPortal(portalGroup) {
+function navigateToRefPortal(_portalGroup) {
   const urlParams = new URLSearchParams(window.location.search);
   const refUrl = urlParams.get('ref');
   if (!refUrl) return;
@@ -101,7 +101,10 @@ function navigateToRefPortal(portalGroup) {
     }
   }
   const paramString = newParams.toString();
-  openPortalAndRespawn(url + (paramString ? '?' + paramString : ''), portalGroup);
+  const dest = url + (paramString ? '?' + paramString : '');
+  navigating = true;
+  if (promptEl) promptEl.style.display = 'none';
+  window.location.href = dest;
 }
 
 function navigateToPieterPortal(portalGroup) {

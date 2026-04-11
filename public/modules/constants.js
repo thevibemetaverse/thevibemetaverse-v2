@@ -9,6 +9,8 @@ export const PLAYER_MOVE_SPEED = 32;        // units per second
  * Player starts at this +Z — the far (+Z) end of the open spawn area; hub row stays toward −Z.
  */
 export const PLAYER_SPAWN_Z = 100;
+/** Initial local player Y rotation (rad); π faces the opposite heading from the former default. */
+export const PLAYER_SPAWN_YAW = Math.PI;
 export const PLAYER_WORLD_LIMIT = 300;      // clamp position to ±limit
 export const PLAYER_TARGET_HEIGHT = 10.0;   // avatar scale target (units)
 /**
@@ -77,13 +79,13 @@ export const PORTAL_LABEL_Y_OFFSET_RATIO = 0.25;
  * procedural disk the label was authored for).
  */
 export const PORTAL_GLB_LABEL_SCALE = 2.25;
-/** Used for the custom return portal (?portal) — right flank X (see PORTAL_ROW_OFFSET_X). */
+/** World +X for the green Pieter / Vibeverse torus (right flank; see PORTAL_ROW_OFFSET_X). */
 export const PORTAL_PIETER_X = 18;
 /**
- * Custom return portal (?portal) sits this far along +Z past {@link PLAYER_SPAWN_Z}
- * (directly behind spawn on X=0).
+ * Custom return portal (?portal): offset along +Z from {@link PLAYER_SPAWN_Z} (player faces −Z).
+ * Kept moderate so the torus stays reachable without a long walk; still on the camera side of spawn.
  */
-export const PORTAL_RETURN_BEHIND_SPAWN = 15;
+export const PORTAL_RETURN_BEHIND_SPAWN = 20;
 /** World Z for the red return torus — derived so it tracks spawn. */
 export const PORTAL_RETURN_Z = PLAYER_SPAWN_Z + PORTAL_RETURN_BEHIND_SPAWN;
 /** Scale applied to registry portal groups after scatter placement. */
