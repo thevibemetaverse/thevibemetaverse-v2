@@ -17,6 +17,9 @@ import { createNametagSprite, updateNametagText } from './nametag.js';
 
 /** @type {WebSocket | null} */
 let ws = null;
+
+/** @type {Array<(itemId: string, count: number) => void>} */
+const onItemViewCountCallbacks = [];
 let lastSendAt = 0;
 /** @type {ReturnType<typeof setInterval> | null} */
 let pingInterval = null;
@@ -136,6 +139,14 @@ function handleMessage(raw) {
           );
         }
       }
+      if (msg.itemViewCounts && typeof msg.itemViewCounts === 'object') {
+        for (const [itemId, count] of Object.entries(msg.itemViewCounts)) {
+          state.itemViewCounts.set(itemId, /** @type {number} */ (count));
+        }
+        onItemViewCountCallbacks.forEach((cb) => {
+          for (const [itemId, count] of state.itemViewCounts) cb(itemId, count);
+        });
+      }
       break;
     }
     case 'player_joined': {
@@ -188,6 +199,13 @@ function handleMessage(raw) {
         r.name =
           typeof msg.name === 'string' ? msg.name : DEFAULT_PLAYER_NAME;
         if (r.nametagSprite) updateNametagText(r.nametagSprite, r.name);
+      }
+      break;
+    }
+    case 'item_view_count': {
+      if (typeof msg.itemId === 'string' && typeof msg.count === 'number') {
+        state.itemViewCounts.set(msg.itemId, msg.count);
+        onItemViewCountCallbacks.forEach((cb) => cb(msg.itemId, msg.count));
       }
       break;
     }
@@ -296,6 +314,18 @@ export function updateMultiplayer(delta) {
     r.lastMovingState = ctx.lastMovingState;
     if (r.animationMixer) r.animationMixer.update(delta);
   }
+}
+
+/** @param {string} itemId */
+export function sendItemViewed(itemId) {
+  if (ws?.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'item_viewed', itemId }));
+  }
+}
+
+/** Register a callback fired when any item's view count changes. */
+export function onItemViewCount(cb) {
+  onItemViewCountCallbacks.push(cb);
 }
 
 export function notifyLocalAvatarChanged() {

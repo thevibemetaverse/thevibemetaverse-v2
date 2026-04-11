@@ -1,8 +1,9 @@
 // @ts-check
 import * as THREE from 'three';
 import { state } from './state.js';
-import { getModel } from './models.js';
-import { createMeatPreview, startMeatAnimation, stopMeatAnimation } from './chest-meat-preview.js';
+import { getModel, onModelLoaded } from './models.js';
+import { createMeatPreview } from './chest-meat-preview.js';
+import { sendItemViewed, onItemViewCount } from './multiplayer.js';
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -22,7 +23,8 @@ let meatItem;
 /** @type {HTMLElement} */
 let viewCountEl;
 
-let viewCount = 0;
+/** @type {THREE.Mesh[]} */
+let freezerMeshes = [];
 
 function createDOM() {
   overlay = document.createElement('div');
@@ -119,7 +121,7 @@ function createDOM() {
 
   viewCountEl = document.createElement('span');
   viewCountEl.className = 'chest-viewers-count';
-  viewCountEl.textContent = '0';
+  viewCountEl.textContent = String(state.itemViewCounts.get('wagyu-a5-brisket') ?? 0);
 
   const viewerStatus = document.createElement('span');
   viewerStatus.className = 'chest-viewers-status';
@@ -160,27 +162,19 @@ function openChestMenu() {
   state.gameState = 'CHEST_MENU';
   state.chestMenuOpen = true;
   state.isPointerDown = false;
-  state.keys = {};
+  for (const k in state.keys) delete state.keys[k];
 
-  // Increment view count
   if (!state.meatSold) {
-    viewCount++;
-    viewCountEl.textContent = String(viewCount);
-    viewCountEl.classList.remove('chest-viewers-count--bump');
-    // Force reflow to restart animation
-    void viewCountEl.offsetWidth;
-    viewCountEl.classList.add('chest-viewers-count--bump');
+    sendItemViewed('wagyu-a5-brisket');
   }
 
   overlay.classList.add('open');
-  startMeatAnimation();
 }
 
 function closeChestMenu() {
   state.gameState = 'EXPLORING';
   state.chestMenuOpen = false;
   overlay.classList.remove('open');
-  stopMeatAnimation();
 }
 
 function setupClickDetection() {
@@ -199,22 +193,13 @@ function setupClickDetection() {
     const dy = e.clientY - pointerStart.y;
     if (Math.hypot(dx, dy) > 5) return;
 
-    const freezer = getModel('chest-freezer');
-    if (!freezer) return;
+    if (freezerMeshes.length === 0) return;
 
     mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, state.camera);
 
-    /** @type {THREE.Mesh[]} */
-    const targets = [];
-    freezer.traverse((child) => {
-      if (/** @type {THREE.Mesh} */ (child).isMesh) {
-        targets.push(/** @type {THREE.Mesh} */ (child));
-      }
-    });
-
-    const hits = raycaster.intersectObjects(targets, false);
+    const hits = raycaster.intersectObjects(freezerMeshes, false);
     if (hits.length > 0) {
       openChestMenu();
     }
@@ -233,4 +218,22 @@ export function initChestMenu() {
   createDOM();
   setupClickDetection();
   setupEscListener();
+
+  onItemViewCount((itemId, count) => {
+    if (itemId !== 'wagyu-a5-brisket') return;
+    viewCountEl.textContent = String(count);
+    viewCountEl.classList.remove('chest-viewers-count--bump');
+    void viewCountEl.offsetWidth;
+    viewCountEl.classList.add('chest-viewers-count--bump');
+  });
+
+  onModelLoaded(() => {
+    const freezer = getModel('chest-freezer');
+    if (!freezer || freezerMeshes.length > 0) return;
+    freezer.traverse((child) => {
+      if (/** @type {THREE.Mesh} */ (child).isMesh) {
+        freezerMeshes.push(/** @type {THREE.Mesh} */ (child));
+      }
+    });
+  });
 }

@@ -10,6 +10,7 @@ import { state } from './state.js';
  * @property {[number, number, number]} position - [x, y, z]
  * @property {[number, number, number]} [rotation] - [x, y, z] in degrees
  * @property {[number, number, number] | number} [scale] - Uniform number or [x, y, z]
+ * @property {boolean} [noReceiveShadow] - Skip receiveShadow on all meshes (use for models with interior/small surfaces)
  */
 
 /** @type {ModelPlacement[]} */
@@ -34,6 +35,7 @@ export const MODEL_PLACEMENTS = [
     position: [-16, 3, -30],
     rotation: [0, -385, 0],
     scale: 0.1,
+    noReceiveShadow: true,
   },
 ];
 
@@ -84,7 +86,7 @@ function loadModel(placement) {
         model.traverse((child) => {
           if (child.isMesh) {
             child.castShadow = true;
-            child.receiveShadow = true;
+            if (!placement.noReceiveShadow) child.receiveShadow = true;
           }
         });
 

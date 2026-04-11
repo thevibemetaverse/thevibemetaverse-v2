@@ -554,17 +554,6 @@ canvas { display: block; touch-action: none; }
   opacity: 1;
 }
 
-.chest-item-icon {
-  font-size: 34px;
-  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.4));
-  line-height: 1;
-  transition: filter 0.3s;
-}
-.chest-slot.has-item:hover .chest-item .chest-item-icon {
-  filter: drop-shadow(0 0 14px rgba(255, 215, 0, 0.7))
-         drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
-}
-
 /* Wagyu A5 pixel-art sprite — top-down, Minecraft-style. Source is 32x32
    drawn via Canvas2D; we upscale nearest-neighbor so the chunky pixels
    stay crisp. A warm gold halo keeps it feeling premium inside the slot. */
@@ -581,9 +570,7 @@ canvas { display: block; touch-action: none; }
   transition: filter 0.3s, transform 0.3s;
 }
 .chest-slot.has-item:hover .chest-item .chest-meat-canvas {
-  filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.45))
-         drop-shadow(0 0 26px rgba(255, 100, 100, 0.22))
-         drop-shadow(0 0 40px rgba(255, 215, 0, 0.2))
+  filter: drop-shadow(0 0 18px rgba(255, 215, 0, 0.5))
          drop-shadow(3px 4px 0 rgba(0, 0, 0, 0.75));
 }
 
@@ -837,64 +824,3 @@ canvas { display: block; touch-action: none; }
   }
 }
 
-.chest-trophy-icon {
-  font-size: 28px;
-  filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.5));
-  line-height: 1;
-}
-
-.chest-claimed-label {
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  font-weight: 900;
-  color: #ffd700;
-  letter-spacing: 0.2em;
-  text-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
-  margin-top: 1px;
-}
-
-.chest-buyer-name {
-  font-family: 'Courier New', monospace;
-  font-size: 9px;
-  font-weight: 700;
-  color: #fff4b8;
-  letter-spacing: 0.05em;
-  text-shadow: 0 0 4px rgba(255, 215, 0, 0.4);
-  max-width: 64px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
-}
-
-.chest-engraving {
-  font-family: 'Courier New', monospace;
-  font-size: 7px;
-  font-style: italic;
-  color: rgba(201, 168, 76, 0.4);
-  letter-spacing: 0.08em;
-  margin-top: 1px;
-}
-
-/* Confetti */
-.confetti-particle {
-  position: absolute;
-  pointer-events: none;
-  animation: confetti-fall 2s ease-out forwards;
-  z-index: 10;
-}
-
-@keyframes confetti-fall {
-  0% {
-    transform: translateY(0) translateX(0) rotate(0deg) scale(1);
-    opacity: 1;
-  }
-  20% {
-    transform: translateY(-30px) translateX(var(--confetti-drift, 0)) rotate(calc(var(--confetti-rotation, 360deg) * 0.2)) scale(1.2);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(350px) translateX(var(--confetti-drift, 0)) rotate(var(--confetti-rotation, 360deg)) scale(0.6);
-    opacity: 0;
-  }
-}

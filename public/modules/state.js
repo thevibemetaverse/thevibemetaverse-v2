@@ -77,6 +77,7 @@ import {
  * @property {boolean} chestMenuOpen - Whether the chest menu overlay is visible
  * @property {boolean} meatSold - Whether the legendary meat has been purchased
  * @property {string} meatBuyer - Display name of the buyer
+ * @property {Map<string, number>} itemViewCounts - Per-item global view counts synced from server
  *
  * @property {string | null} localPlayerId - Assigned by multiplayer welcome (UUID).
  * @property {boolean} localPlayerMoving - Updated each frame from movement input (for network).
@@ -131,6 +132,7 @@ export const state = {
   chestMenuOpen: false,
   meatSold: false,
   meatBuyer: '',
+  itemViewCounts: new Map(),
 
   localPlayerId: null,
   localPlayerMoving: false,

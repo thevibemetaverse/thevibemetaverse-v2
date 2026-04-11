@@ -21,13 +21,3 @@ export function createMeatPreview() {
   img.draggable = false;
   return img;
 }
-
-// Animation hooks kept for chest-menu.js compatibility — the sprite is a
-// static PNG so both are no-ops.
-export function startMeatAnimation() {
-  // no-op
-}
-
-export function stopMeatAnimation() {
-  // no-op
-}
