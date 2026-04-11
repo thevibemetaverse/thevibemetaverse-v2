@@ -16,6 +16,7 @@ import {
   PORTAL_SCATTER_FRONT_MIN,
   PORTAL_SCATTER_FRONT_MAX,
   PORTAL_SCATTER_MIN_SEPARATION,
+  PORTAL_SURFACE_OPACITY,
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity, setPortalPlayer } from './portal-proximity.js';
@@ -23,49 +24,41 @@ import { gltfLoader } from './loader.js';
 
 // Same-origin; Express proxies to PORTALS_SERVER.
 const PORTALS_URL = '/portals.json';
-const PORTALS_ORIGIN = 'https://portal.thevibemetaverse.com';
-const PORTAL_V2_MODEL_PATH = 'assets/models/portal-v2.glb';
+const PORTAL_V2_MODEL_PATH = 'assets/models/portal-v2-draco.glb';
 
-const textureLoader = new THREE.TextureLoader();
 const portalClock = new THREE.Clock();
 let portals = [];
 let customRefPortal = null;
 let pieterPortal = null;
 let _player = null;
 
-/** Inner disk in portal-v2.glb — named `PortalSurface` in the asset. */
-function tintPortalSurface(root, colorHex, imageUrl) {
-  const c = new THREE.Color(colorHex);
+/**
+ * Find any mesh whose material is BLEND-transparent in source and force a
+ * visible see-through opacity. Detection is by material flag, not mesh name,
+ * so re-exports that rename the inner disk node still work as long as the
+ * artist keeps the disk material set to "transparent / blend" in the source.
+ */
+function applyPortalSurfaceOpacity(root) {
+  let touched = 0;
   root.traverse((child) => {
-    if (!child.isMesh || child.name !== 'PortalSurface') return;
-    // Clone materials so each portal gets its own instance
-    if (Array.isArray(child.material)) {
-      child.material = child.material.map((m) => m.clone());
-    } else {
-      child.material = child.material.clone();
-    }
-    const materials = Array.isArray(child.material)
+    if (!child.isMesh) return;
+    const mats = Array.isArray(child.material)
       ? child.material
       : [child.material];
-    for (const mat of materials) {
-      if (mat?.color) mat.color.copy(c);
-      if (mat?.emissive) mat.emissive.set(0x000000);
-    }
-    // Apply the portal image from the SDK registry as the surface texture
-    if (imageUrl) {
-      textureLoader.load(imageUrl, (tex) => {
-        tex.colorSpace = THREE.SRGBColorSpace;
-        const mat = Array.isArray(child.material)
-          ? child.material[0]
-          : child.material;
-        if (mat) {
-          mat.map = tex;
-          mat.color.set(0xffffff);
-          mat.needsUpdate = true;
-        }
-      });
+    for (const mat of mats) {
+      if (mat?.transparent) {
+        mat.opacity = PORTAL_SURFACE_OPACITY;
+        mat.depthWrite = false;
+        mat.needsUpdate = true;
+        touched++;
+      }
     }
   });
+  if (touched === 0) {
+    console.warn(
+      `[Portals] no transparent material found in ${PORTAL_V2_MODEL_PATH} — inner disk will render solid. Check the source GLB's alphaMode.`
+    );
+  }
 }
 
 /** Load the portal-v2 GLB once and return the scene. */
@@ -73,7 +66,10 @@ function loadPortalModel() {
   return new Promise((resolve) => {
     gltfLoader.load(
       PORTAL_V2_MODEL_PATH,
-      (gltf) => resolve(gltf.scene),
+      (gltf) => {
+        applyPortalSurfaceOpacity(gltf.scene);
+        resolve(gltf.scene);
+      },
       undefined,
       (err) => {
         console.warn('[Portals] Failed to load portal-v2 model:', err);
@@ -87,7 +83,7 @@ function loadPortalModel() {
  * Replace the procedural SDK portal visuals in a group with a clone of the GLB model.
  * Keeps the label sprite and a compatible portalMat for the update loop.
  */
-function replacePortalWithModel(group, sourceModel, imageUrl) {
+function replacePortalWithModel(group, sourceModel) {
   // Preserve the label sprite (last child is typically the sprite)
   const label = [];
   group.traverse((child) => {
@@ -108,8 +104,9 @@ function replacePortalWithModel(group, sourceModel, imageUrl) {
   while (group.children.length) group.remove(group.children[0]);
 
   // Measure the replacement model before adding it to a transformed parent.
+  // Object3D.clone() shares materials by reference, so the opacity applied
+  // once in applyPortalSurfaceOpacity() carries to every portal here.
   const clone = sourceModel.clone();
-  tintPortalSurface(clone, 0x000000, imageUrl);
   const bounds = new THREE.Box3().setFromObject(clone);
   const modelHeight = Math.max(0.001, bounds.max.y - bounds.min.y);
   const labelY = bounds.max.y + modelHeight * PORTAL_LABEL_Y_OFFSET_RATIO;
@@ -187,7 +184,8 @@ export async function initPortals(scene, player) {
   registryData.reverse();
 
   // Strip portalImageUrl so the SDK doesn't try to load relative paths (404s).
-  // We apply the images ourselves on the GLB PortalSurface after replacement.
+  // We replace the SDK procedural visuals entirely with the GLB model below;
+  // the per-destination thumbnails were dropped in favour of label sprites.
   const rowEntries = registryData.map((p) => ({ ...p, portalImageUrl: '' }));
   portals = spawnPortalRow(scene, rowEntries, {
     rowZ: PORTAL_ROW_Z,
@@ -251,11 +249,7 @@ export async function initPortals(scene, player) {
   // Replace SDK procedural portal visuals with the GLB model
   if (portalModel) {
     for (let i = 0; i < portals.length; i++) {
-      const imgPath = registryData[i]?.portalImageUrl;
-      const imgUrl = imgPath
-        ? new URL('PORTALS/' + imgPath, PORTALS_ORIGIN + '/').href
-        : null;
-      replacePortalWithModel(portals[i].group, portalModel, imgUrl);
+      replacePortalWithModel(portals[i].group, portalModel);
     }
   }
 
