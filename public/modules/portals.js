@@ -79,6 +79,51 @@ function applyPortalSurfaceOpacity(root) {
 }
 
 /**
+ * Swap PBR materials on a portal scene to MeshLambertMaterial. The portal GLBs
+ * are ~75K tris each with PBR + normal maps; rendering several of them in the
+ * camera frustum at spawn drops FPS on integrated GPUs (the MacBook Air case).
+ * Lambert kills the per-pixel BRDF, the normal-map tangent transform, and the
+ * IBL env-map sample. Loses metalness/roughness response and normal detail —
+ * portals look flatter / more matte but stay readable.
+ *
+ * Run once per unique GLB inside loadPortalGlb so every Object3D.clone() picks
+ * up the swapped materials by reference (no re-traversal per clone).
+ */
+function downgradePortalMaterialsToLambert(root) {
+  /** @param {THREE.Material | null | undefined} mat */
+  const swap = (mat) => {
+    if (!mat) return mat;
+    // @ts-ignore — runtime type guard
+    if (!(mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial)) return mat;
+    const std = /** @type {THREE.MeshStandardMaterial} */ (mat);
+    const lambert = new THREE.MeshLambertMaterial({
+      color: std.color,
+      map: std.map,
+      emissive: std.emissive,
+      emissiveMap: std.emissiveMap,
+      emissiveIntensity: std.emissiveIntensity,
+      alphaMap: std.alphaMap,
+      alphaTest: std.alphaTest,
+      transparent: std.transparent,
+      opacity: std.opacity,
+      side: std.side,
+      depthWrite: std.depthWrite,
+      name: std.name,
+    });
+    std.dispose();
+    return lambert;
+  };
+  root.traverse((child) => {
+    if (!child.isMesh || !child.material) return;
+    if (Array.isArray(child.material)) {
+      child.material = child.material.map(swap);
+    } else {
+      child.material = swap(child.material);
+    }
+  });
+}
+
+/**
  * Load a portal GLB (memoised by path) and return both the scene and its
  * local-space bounds. Bounds are identical for every clone (clones share
  * local transforms), so computing them here avoids an N×traversal during
@@ -92,6 +137,9 @@ function loadPortalGlb(path) {
     gltfLoader.load(
       path,
       (gltf) => {
+        // Order matters: swap to Lambert first, then mutate the new materials
+        // for the inner-disc opacity. Both helpers traverse only this GLB once.
+        downgradePortalMaterialsToLambert(gltf.scene);
         applyPortalSurfaceOpacity(gltf.scene);
         const bounds = new THREE.Box3().setFromObject(gltf.scene);
         resolve({ scene: gltf.scene, bounds });

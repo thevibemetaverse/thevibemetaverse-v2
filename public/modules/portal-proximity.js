@@ -18,6 +18,19 @@ function distanceXZ(a, b) {
   return Math.hypot(dx, dz);
 }
 
+// Cached at module load — URL params don't change after page load, so re-parsing
+// them every frame in checkProximity is pure waste (and a DOM read).
+const _initialParams = new URLSearchParams(window.location.search);
+const _refUrlParam = _initialParams.get('ref');
+const _fromPortalParam = _initialParams.get('from_portal');
+
+// Reused per frame to avoid Vector3 allocation in the render loop.
+const _scratchWorldPos = new THREE.Vector3();
+
+// Cached prompt DOM state — only touch the DOM when these change.
+let _promptVisible = false;
+let _promptText = '';
+
 let promptEl = null;
 let navigating = false;
 /** Set after BFCache restore — tells the next checkProximity call to teleport player to spawn. */
@@ -49,6 +62,26 @@ function ensurePrompt() {
   document.body.appendChild(promptEl);
 }
 
+/** Show prompt with text — only writes to the DOM when text or visibility changed. */
+function showPrompt(text) {
+  ensurePrompt();
+  if (_promptText !== text) {
+    promptEl.textContent = text;
+    _promptText = text;
+  }
+  if (!_promptVisible) {
+    promptEl.style.display = 'block';
+    _promptVisible = true;
+  }
+}
+
+/** Hide prompt — only writes to the DOM if it was visible. */
+function hidePrompt() {
+  if (!_promptVisible) return;
+  if (promptEl) promptEl.style.display = 'none';
+  _promptVisible = false;
+}
+
 /** Distance to place the player in front of the portal after using it. */
 const PORTAL_RESPAWN_OFFSET = 12;
 
@@ -73,7 +106,7 @@ function openPortalAndRespawn(url, portalGroup) {
     _player.position.set(0, 0, PLAYER_SPAWN_Z);
   }
   cooldownUntil = performance.now() + 2000;
-  if (promptEl) promptEl.style.display = 'none';
+  hidePrompt();
   // Allow portal checks again after cooldown
   setTimeout(() => { navigating = false; }, 2000);
 }
@@ -87,13 +120,13 @@ export function setPortalPlayer(player) {
 }
 
 function navigateToRefPortal(_portalGroup) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const refUrl = urlParams.get('ref');
-  if (!refUrl) return;
-  let url = refUrl;
+  if (!_refUrlParam) return;
+  let url = _refUrlParam;
   if (!url.startsWith('http://') && !url.startsWith('https://')) {
     url = 'https://' + url;
   }
+  // Re-read params here (not from cache) — this is a one-shot navigation, not the hot path.
+  const urlParams = new URLSearchParams(window.location.search);
   const newParams = new URLSearchParams();
   for (const [key, value] of urlParams) {
     if (key !== 'ref') {
@@ -103,7 +136,7 @@ function navigateToRefPortal(_portalGroup) {
   const paramString = newParams.toString();
   const dest = url + (paramString ? '?' + paramString : '');
   navigating = true;
-  if (promptEl) promptEl.style.display = 'none';
+  hidePrompt();
   window.location.href = dest;
 }
 
@@ -156,84 +189,67 @@ export function checkProximity(player, customRefPortal, pieterPortal, registryPo
 
   // Suppress portal checks during cooldown (prevents instant re-trigger after respawn).
   if (performance.now() < cooldownUntil) {
-    if (promptEl) promptEl.style.display = 'none';
+    hidePrompt();
     return;
   }
 
-  const worldPos = new THREE.Vector3();
-
-  let refDist = Infinity;
-  if (player && customRefPortal) {
-    customRefPortal.group.getWorldPosition(worldPos);
-    refDist = distanceXZ(player.position, worldPos);
+  if (!player) {
+    hidePrompt();
+    return;
   }
 
-  let pieterDist = Infinity;
-  if (player && pieterPortal) {
-    pieterPortal.group.getWorldPosition(worldPos);
-    pieterDist = distanceXZ(player.position, worldPos);
+  // Find the single closest portal in one pass — no array allocation, no sort.
+  /** @type {'ref' | 'pieter' | 'registry' | null} */
+  let bestKind = null;
+  let bestDist = Infinity;
+  /** @type {any} */
+  let bestRegistryPortal = null;
+
+  if (customRefPortal && _refUrlParam) {
+    customRefPortal.group.getWorldPosition(_scratchWorldPos);
+    const d = distanceXZ(player.position, _scratchWorldPos);
+    if (d < PORTAL_PROXIMITY_DIST && d < bestDist) {
+      bestDist = d;
+      bestKind = 'ref';
+    }
   }
 
-  let nearestRegistry = null;
-  let nearestRegistryDist = Infinity;
+  if (pieterPortal) {
+    pieterPortal.group.getWorldPosition(_scratchWorldPos);
+    const d = distanceXZ(player.position, _scratchWorldPos);
+    if (d < PORTAL_PROXIMITY_DIST && d < bestDist) {
+      bestDist = d;
+      bestKind = 'pieter';
+      bestRegistryPortal = null;
+    }
+  }
 
   for (const portal of registryPortals) {
-    if (player) {
-      portal.group.getWorldPosition(worldPos);
-      const dist = distanceXZ(player.position, worldPos);
-      if (dist < nearestRegistryDist) {
-        nearestRegistryDist = dist;
-        nearestRegistry = portal;
-      }
+    portal.group.getWorldPosition(_scratchWorldPos);
+    const d = distanceXZ(player.position, _scratchWorldPos);
+    if (d < PORTAL_PROXIMITY_DIST && d < bestDist) {
+      bestDist = d;
+      bestKind = 'registry';
+      bestRegistryPortal = portal;
     }
   }
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const refUrl = urlParams.get('ref');
-  const fromPortalName = urlParams.get('from_portal');
-  const candidates = [];
-  if (customRefPortal && refUrl && refDist < PORTAL_PROXIMITY_DIST) {
-    candidates.push({ kind: 'ref', dist: refDist });
-  }
-  if (pieterPortal && pieterDist < PORTAL_PROXIMITY_DIST) {
-    candidates.push({ kind: 'pieter', dist: pieterDist });
-  }
-  if (nearestRegistry && nearestRegistryDist < PORTAL_PROXIMITY_DIST) {
-    candidates.push({
-      kind: 'registry',
-      dist: nearestRegistryDist,
-      portal: nearestRegistry,
-    });
-  }
-  candidates.sort((a, b) => a.dist - b.dist);
-  const best = candidates[0];
-
-  if (best?.kind === 'ref' && !navigating) {
-    ensurePrompt();
-    promptEl.textContent = fromPortalName
-      ? `Returning to ${fromPortalName}…`
-      : 'Entering portal…';
-    promptEl.style.display = 'block';
-    if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
+  if (bestKind === 'ref' && !navigating) {
+    showPrompt(_fromPortalParam ? `Returning to ${_fromPortalParam}…` : 'Entering portal…');
+    if (bestDist < PORTAL_CUSTOM_REF_ENTER_DIST) {
       navigateToRefPortal(customRefPortal.group);
     }
-  } else if (best?.kind === 'pieter' && !navigating) {
-    ensurePrompt();
-    promptEl.textContent = 'Entering Vibeverse portal...';
-    promptEl.style.display = 'block';
-    if (best.dist < PORTAL_CUSTOM_REF_ENTER_DIST) {
+  } else if (bestKind === 'pieter' && !navigating) {
+    showPrompt('Entering Vibeverse portal...');
+    if (bestDist < PORTAL_CUSTOM_REF_ENTER_DIST) {
       navigateToPieterPortal(pieterPortal.group);
     }
-  } else if (best?.kind === 'registry' && best.portal && !navigating) {
-    ensurePrompt();
-    promptEl.textContent =
-      'Entering ' + (best.portal.data.title || best.portal.data.slug) + '...';
-    promptEl.style.display = 'block';
-
-    if (best.dist < PORTAL_ENTER_DIST) {
-      navigateToRegistryPortal(best.portal);
+  } else if (bestKind === 'registry' && bestRegistryPortal && !navigating) {
+    showPrompt('Entering ' + (bestRegistryPortal.data.title || bestRegistryPortal.data.slug) + '...');
+    if (bestDist < PORTAL_ENTER_DIST) {
+      navigateToRegistryPortal(bestRegistryPortal);
     }
-  } else if (promptEl) {
-    promptEl.style.display = 'none';
+  } else {
+    hidePrompt();
   }
 }

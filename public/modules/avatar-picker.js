@@ -1,4 +1,5 @@
 import {
+  BUNDLED_ANT,
   BUNDLED_HARE,
   BUNDLED_METAVERSE_EXPLORER,
   BUNDLED_ROBOT,
@@ -10,6 +11,7 @@ const AVATAR_SLOTS = [
   ['explorer', null],
   ['robot', BUNDLED_ROBOT],
   ['rabbit', BUNDLED_HARE],
+  ['ant', BUNDLED_ANT],
 ];
 
 function syncActiveButtons(container) {

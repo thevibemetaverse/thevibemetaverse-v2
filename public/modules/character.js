@@ -9,6 +9,7 @@ import {
 export const BUNDLED_METAVERSE_EXPLORER = 'assets/models/metaverse-explorer.glb';
 export const BUNDLED_ROBOT = 'assets/models/animated_humanoid_robot.glb';
 export const BUNDLED_HARE = 'assets/models/hare_animated.glb';
+export const BUNDLED_ANT = 'assets/models/ant.glb';
 export const SAMPLE_FOX_GLB =
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Fox/glTF-Binary/Fox.glb';
 export const SAMPLE_DUCK_GLB =
