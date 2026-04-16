@@ -13,12 +13,15 @@ import {
   PLAYER_SPAWN_Z,
   PORTAL_RETURN_Z,
   PORTAL_SCALE,
+  PORTAL_SHADER_SCALE,
+  PORTAL_SHADER_Y_OFFSET,
   PORTAL_SCATTER_HALF_WIDTH,
   PORTAL_SCATTER_FRONT_MIN,
   PORTAL_SCATTER_FRONT_MAX,
   PORTAL_SCATTER_MIN_SEPARATION,
   PORTAL_SURFACE_OPACITY,
   REGISTRY_PORTAL_MANUAL_PLACEMENTS,
+  USE_GLTF_PORTALS,
 } from './constants.js';
 import { createTorusPortal, animateTorusPortal } from './portal-meshes.js';
 import { checkProximity, setPortalPlayer } from './portal-proximity.js';
@@ -223,9 +226,9 @@ export async function initPortals(scene, player) {
   _player = player;
   setPortalPlayer(player);
 
-  // Load portal model and registry in parallel
+  // Load portal model (when GLB pipeline enabled) and registry in parallel.
   const [portalModelResult, registryResult] = await Promise.all([
-    loadPortalGlb(PORTAL_MODEL_PATH),
+    USE_GLTF_PORTALS ? loadPortalGlb(PORTAL_MODEL_PATH) : Promise.resolve(null),
     fetchPortalsRegistry(PORTALS_URL).catch((err) => {
       console.warn('[Portals] Could not load portals.json:', err);
       return [];
@@ -304,52 +307,62 @@ export async function initPortals(scene, player) {
     } while (tooClose && attempts < 50);
 
     placedPositions.push({ x, z });
-    portals[i].group.scale.setScalar(PORTAL_SCALE);
+    const baseScale = PORTAL_SCALE * (USE_GLTF_PORTALS ? 1 : PORTAL_SHADER_SCALE);
+    portals[i].group.scale.setScalar(baseScale);
     portals[i].group.position.set(x, PORTAL_PIETER_ELEVATION_Y, z);
     portals[i].group.lookAt(spawnPos.x, PORTAL_PIETER_ELEVATION_Y, spawnPos.z);
   }
 
   applyRegistryPortalManualPlacements(portals);
 
+  // SDK shader portals pivot at center (vs. GLBs at base) — drop them so the
+  // scaled ring sits at avatar height instead of floating overhead.
+  if (!USE_GLTF_PORTALS) {
+    for (const p of portals) p.group.position.y += PORTAL_SHADER_Y_OFFSET;
+  }
+
   // Replace SDK procedural portal visuals with the GLB model.
   // Bounds are computed once per path in loadPortalGlb and reused for every clone.
   // Per-slug modelPath in REGISTRY_PORTAL_MANUAL_PLACEMENTS is preloaded here.
-  /** @type {Map<string, { scene: THREE.Object3D, bounds: THREE.Box3 }>} */
-  const portalGlbByPath = new Map();
-  if (portalModel && portalBounds) {
-    portalGlbByPath.set(PORTAL_MODEL_PATH, {
-      scene: portalModel,
-      bounds: portalBounds,
-    });
-  }
-  const extraPortalPaths = new Set();
-  for (const p of portals) {
-    const slug = p.data?.slug;
-    const mp =
-      slug && REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug]?.modelPath;
-    if (mp && mp !== PORTAL_MODEL_PATH) extraPortalPaths.add(mp);
-  }
-  await Promise.all(
-    [...extraPortalPaths].map(async (path) => {
-      const r = await loadPortalGlb(path);
-      if (r?.scene && r.bounds) portalGlbByPath.set(path, r);
-    })
-  );
+  // Gated on USE_GLTF_PORTALS — when off, registry portals keep the SDK shader visuals.
+  if (USE_GLTF_PORTALS) {
+    /** @type {Map<string, { scene: THREE.Object3D, bounds: THREE.Box3 }>} */
+    const portalGlbByPath = new Map();
+    if (portalModel && portalBounds) {
+      portalGlbByPath.set(PORTAL_MODEL_PATH, {
+        scene: portalModel,
+        bounds: portalBounds,
+      });
+    }
+    const extraPortalPaths = new Set();
+    for (const p of portals) {
+      const slug = p.data?.slug;
+      const mp =
+        slug && REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug]?.modelPath;
+      if (mp && mp !== PORTAL_MODEL_PATH) extraPortalPaths.add(mp);
+    }
+    await Promise.all(
+      [...extraPortalPaths].map(async (path) => {
+        const r = await loadPortalGlb(path);
+        if (r?.scene && r.bounds) portalGlbByPath.set(path, r);
+      })
+    );
 
-  const defaultGlb = portalGlbByPath.get(PORTAL_MODEL_PATH);
-  if (defaultGlb?.scene && defaultGlb?.bounds) {
-    for (let i = 0; i < portals.length; i++) {
-      const slug = portals[i].data?.slug;
-      const cfg = slug ? REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug] : undefined;
-      const wantPath = cfg?.modelPath ?? PORTAL_MODEL_PATH;
-      let glb = portalGlbByPath.get(wantPath);
-      let appliedPath = wantPath;
-      if (!glb?.scene || !glb?.bounds) {
-        glb = defaultGlb;
-        appliedPath = PORTAL_MODEL_PATH;
+    const defaultGlb = portalGlbByPath.get(PORTAL_MODEL_PATH);
+    if (defaultGlb?.scene && defaultGlb?.bounds) {
+      for (let i = 0; i < portals.length; i++) {
+        const slug = portals[i].data?.slug;
+        const cfg = slug ? REGISTRY_PORTAL_MANUAL_PLACEMENTS[slug] : undefined;
+        const wantPath = cfg?.modelPath ?? PORTAL_MODEL_PATH;
+        let glb = portalGlbByPath.get(wantPath);
+        let appliedPath = wantPath;
+        if (!glb?.scene || !glb?.bounds) {
+          glb = defaultGlb;
+          appliedPath = PORTAL_MODEL_PATH;
+        }
+        replacePortalWithModel(portals[i].group, glb.scene, glb.bounds);
+        portals[i].group.userData._portalModelPath = appliedPath;
       }
-      replacePortalWithModel(portals[i].group, glb.scene, glb.bounds);
-      portals[i].group.userData._portalModelPath = appliedPath;
     }
   }
 

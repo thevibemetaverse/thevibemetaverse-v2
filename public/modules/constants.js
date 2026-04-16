@@ -95,6 +95,19 @@ export const PORTAL_RETURN_BEHIND_SPAWN = 20;
 export const PORTAL_RETURN_Z = PLAYER_SPAWN_Z + PORTAL_RETURN_BEHIND_SPAWN;
 /** Scale applied to registry portal groups after scatter placement. */
 export const PORTAL_SCALE = 1;
+/**
+ * Extra scale multiplier applied on top of {@link PORTAL_SCALE} when
+ * {@link USE_GLTF_PORTALS} is false. SDK procedural portals have a smaller
+ * native size than the GLB arches, so they need a boost to read at avatar scale.
+ */
+export const PORTAL_SHADER_SCALE = 5;
+/**
+ * Y offset applied to every registry portal when {@link USE_GLTF_PORTALS} is false.
+ * GLB portals are authored pivot-at-base so they sit on the ground at Y≈4.9; SDK
+ * procedural portals are pivot-at-center, so after scale-up their center floats
+ * above the ground. This offset drops them back so the ring is reachable.
+ */
+export const PORTAL_SHADER_Y_OFFSET = -3;
 /** Half-width (±X) of the scatter band from spawn. */
 export const PORTAL_SCATTER_HALF_WIDTH = 95;
 /** Nearest −Z offset (distance in front of spawn) for scatter placement. */
@@ -109,6 +122,12 @@ export const PORTAL_SCATTER_MIN_SEPARATION = 34;
  * material set to opaque — `applyPortalSurfaceOpacity` flips it to transparent.
  */
 export const PORTAL_SURFACE_OPACITY = 0.7;
+/**
+ * When false, skip loading portal GLBs and keep the SDK's procedural shader
+ * visuals from spawnPortalRow. Flip to true to restore the GLB-clone pipeline.
+ * Pieter + return tori (createTorusPortal) are unaffected either way.
+ */
+export const USE_GLTF_PORTALS = false;
 
 /**
  * Manual world placement for registry portals, keyed by `portals.json` slug.
